@@ -1,11 +1,13 @@
 // lib/features/profile/screens/profile_screen.dart
+import 'package:demo/features/posts/screens/create_post_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:demo/utils/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:demo/features/profile/screens/update_profile.dart';
+import 'package:demo/utils/user_profile.dart';
 import 'package:demo/utils/user_helpers.dart';
+import 'package:demo/features/profile/screens/update_profile.dart';
 import 'package:demo/features/profile/screens/followers_screen.dart';
 import 'package:demo/features/profile/screens/followings_screen.dart';
+import 'package:demo/features/profile/widgets/user_posts_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -13,25 +15,21 @@ class ProfileScreen extends StatefulWidget {
   final bool showTopBanner;
 
   const ProfileScreen({
-    super.key,
+    Key? key,
     this.onSharePostTapped,
     required this.userId,
     this.showTopBanner = false,
-  });
+  }) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with AutomaticKeepAliveClientMixin {
+class _ProfileScreenState extends State<ProfileScreen> {
   String? _loggedInUserId;
   UserProfile? _userProfile;
   bool _isLoading = true;
   bool _isFollowLoading = false;
-
-  @override
-  bool get wantKeepAlive => false;
 
   @override
   void initState() {
@@ -56,42 +54,27 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
     try {
       final profile = await fetchUserProfile(widget.userId);
-
       final prefs = await SharedPreferences.getInstance();
       final cachedFollowState = prefs.getBool('follow_state_${widget.userId}');
 
       setState(() {
-        _userProfile = profile;
-        if (cachedFollowState != null) {
-          _userProfile = UserProfile(
-            userId: profile.userId,
-            email: profile.email,
-            username: profile.username,
-            bio: profile.bio,
-            profilePicture: profile.profilePicture,
-            followersCount: profile.followersCount,
-            followingCount: profile.followingCount,
-            postsCount: profile.postsCount,
-            isFollowing: cachedFollowState,
-          );
-        }
+        _userProfile = cachedFollowState != null
+            ? profile.copyWith(isFollowing: cachedFollowState)
+            : profile;
         _isLoading = false;
       });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+    } catch (_) {
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleFollowToggle() async {
     if (_userProfile == null || _isFollowLoading) return;
 
-    setState(() {
-      _isFollowLoading = true;
-    });
+    setState(() => _isFollowLoading = true);
 
     final response = await toggleFollow(targetUserId: widget.userId);
 
@@ -103,17 +86,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
 
       setState(() {
-        _userProfile = UserProfile(
-          userId: _userProfile!.userId,
-          email: _userProfile!.email,
-          username: _userProfile!.username,
-          bio: _userProfile!.bio,
-          profilePicture: _userProfile!.profilePicture,
+        _userProfile = _userProfile!.copyWith(
           followersCount: response.isFollowing!
               ? _userProfile!.followersCount + 1
               : _userProfile!.followersCount - 1,
-          followingCount: _userProfile!.followingCount,
-          postsCount: _userProfile!.postsCount,
           isFollowing: response.isFollowing!,
         );
         _isFollowLoading = false;
@@ -128,10 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
       }
     } else {
-      setState(() {
-        _isFollowLoading = false;
-      });
-
+      setState(() => _isFollowLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -144,9 +117,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  void _onSharePostTapped() async {
+    // Use the passed callback if available, otherwise navigate
+    if (widget.onSharePostTapped != null) {
+      widget.onSharePostTapped!();
+    } else {
+      final newPost = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+      );
+
+      if (newPost == true) {
+        setState(() {
+          _userProfile = _userProfile!.copyWith(
+            postsCount: _userProfile!.postsCount + 1,
+          );
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    super.build(context); // for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: widget.showTopBanner
           ? AppBar(
@@ -168,7 +160,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                   _buildProfileHeader(),
                   _buildUsernameBioSection(),
                   const Divider(height: 32),
-                  _buildPostsSection(),
+                  UserPostsWidget(
+                    profileUserId: _userProfile!.userId,
+                    loggedInUserId: _loggedInUserId,
+                    onSharePostTapped: _onSharePostTapped,
+                  ),
                 ],
               ),
             ),
@@ -187,15 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-              });
-              _loadProfile();
-            },
-            child: const Text('Retry'),
-          ),
+          ElevatedButton(onPressed: _loadProfile, child: const Text('Retry')),
         ],
       ),
     );
@@ -304,32 +292,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildPostsSection() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: _userProfile!.postsCount == 0
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  'No posts shared yet',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                if (_loggedInUserId == _userProfile!.userId)
-                  ElevatedButton(
-                    onPressed: widget.onSharePostTapped,
-                    child: const Text('Share a Post'),
-                  ),
-              ],
-            )
-          : const Text(
-              'Posts Grid goes here',
-              style: TextStyle(color: Colors.grey),
-            ),
-    );
-  }
-
   Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
     final content = Column(
       children: [
@@ -341,10 +303,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
-
-    if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: content);
-    }
-    return content;
+    return onTap != null
+        ? GestureDetector(onTap: onTap, child: content)
+        : content;
   }
 }

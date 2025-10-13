@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http_parser/http_parser.dart';
 
+// ----------------- User Profile -----------------
 class UserProfile {
   final String userId;
   final String email;
@@ -26,12 +27,12 @@ class UserProfile {
     required this.followersCount,
     required this.followingCount,
     required this.postsCount,
-    required this.isFollowing,
+    this.isFollowing = false,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      userId: json['user_id']?.toString() ?? '', // Convert to string
+      userId: json['user_id']?.toString() ?? '',
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       bio: json['bio'] ?? '',
@@ -40,6 +41,30 @@ class UserProfile {
       followingCount: json['following_count'] ?? 0,
       postsCount: json['posts_count'] ?? 0,
       isFollowing: json['is_following'] ?? false,
+    );
+  }
+
+  UserProfile copyWith({
+    String? userId,
+    String? email,
+    String? username,
+    String? bio,
+    String? profilePicture,
+    int? followersCount,
+    int? followingCount,
+    int? postsCount,
+    bool? isFollowing,
+  }) {
+    return UserProfile(
+      userId: userId ?? this.userId,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      bio: bio ?? this.bio,
+      profilePicture: profilePicture ?? this.profilePicture,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      postsCount: postsCount ?? this.postsCount,
+      isFollowing: isFollowing ?? this.isFollowing,
     );
   }
 }
@@ -186,6 +211,104 @@ Future<UpdateProfilePictureResponse> updateProfilePicture(dynamic file) async {
     return UpdateProfilePictureResponse(
       success: false,
       message: 'An error occurred: $e',
+    );
+  }
+}
+
+class UserPost {
+  final String postId;
+  final String userId;
+  final String? content;
+  final String? mediaUrl;
+  final DateTime createdAt;
+  final int likesCount;
+  final int commentsCount;
+  final bool isLikedByMe;
+
+  UserPost({
+    required this.postId,
+    required this.userId,
+    this.content,
+    this.mediaUrl,
+    required this.createdAt,
+    required this.likesCount,
+    required this.commentsCount,
+    required this.isLikedByMe,
+  });
+
+  factory UserPost.fromJson(Map<String, dynamic> json) {
+    return UserPost(
+      postId: json['post_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      content: json['content'],
+      mediaUrl: json['media_url'],
+      createdAt: DateTime.parse(json['created_at']),
+      likesCount: json['likes_nbr'] ?? 0,
+      commentsCount: json['comments_nbr'] ?? 0,
+      isLikedByMe: json['is_liked_by_me'] ?? false,
+    );
+  }
+}
+
+class GetUserPostsResponse {
+  final bool success;
+  final String message;
+  final List<UserPost>? posts;
+
+  GetUserPostsResponse({
+    required this.success,
+    required this.message,
+    this.posts,
+  });
+}
+
+Future<GetUserPostsResponse> getUserPosts({required String userId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return GetUserPostsResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      posts: null,
+    );
+  }
+
+  final url = Uri.parse('${AppConstants.baseApiUrl}/posts/$userId');
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      final List<UserPost> posts = List<UserPost>.from(
+        body['data'].map((postJson) => UserPost.fromJson(postJson)),
+      );
+
+      return GetUserPostsResponse(
+        success: true,
+        message: body['message'] ?? 'Posts retrieved successfully',
+        posts: posts,
+      );
+    } else {
+      return GetUserPostsResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to retrieve posts',
+        posts: null,
+      );
+    }
+  } catch (e) {
+    return GetUserPostsResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      posts: null,
     );
   }
 }
