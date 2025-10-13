@@ -23,12 +23,12 @@ class _MainAppScreenState extends State<MainAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use IndexedStack so all screens keep state, and rebuild ProfileScreen to pass the callback
+    // Rebuild screens to pass the callback to ProfileScreen
     final List<Widget> screens = [
       const FeedScreen(),
       ProfileScreen(
         onSharePostTapped: () {
-          // Switch to the CreatePostScreen tab
+          // Switch to CreatePostScreen tab
           setState(() {
             _currentIndex = 2;
           });
@@ -42,9 +42,13 @@ class _MainAppScreenState extends State<MainAppScreen> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        type: BottomNavigationBarType.fixed,
+        currentIndex: _currentIndex, // active tab index
+        onTap: _onTabTapped, // switch tab on tap
+        type: BottomNavigationBarType.fixed, // fixed type for multiple items
+        selectedItemColor: Colors.blue, // highlight active tab
+        unselectedItemColor: Colors.grey, // inactive tab color
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
