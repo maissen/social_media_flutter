@@ -134,8 +134,10 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ProfileScreen(userId: user['user_id'].toString()),
+                  builder: (context) => ProfileScreen(
+                    userId: user['user_id'].toString(),
+                    showTopBanner: true,
+                  ),
                 ),
               );
             }

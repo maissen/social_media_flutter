@@ -8,11 +8,13 @@ import 'package:demo/features/profile/screens/update_profile.dart';
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
   final String userId;
+  final bool showTopBanner;
 
   const ProfileScreen({
     super.key,
     this.onSharePostTapped,
     required this.userId,
+    this.showTopBanner = false,
   });
 
   @override
@@ -38,6 +40,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: widget.showTopBanner
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+              elevation: 0,
+            )
+          : null,
       body: FutureBuilder<UserProfile>(
         future: fetchUserProfile(widget.userId),
         builder: (context, snapshot) {
