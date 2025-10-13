@@ -4,6 +4,7 @@ import 'package:demo/utils/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/features/profile/screens/follow_screen.dart';
 import 'package:demo/features/profile/screens/update_profile.dart';
+import 'package:demo/utils/user_helpers.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -21,13 +22,30 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
   String? _loggedInUserId;
+  UserProfile? _userProfile;
+  bool _isLoading = true;
+  bool _isFollowLoading = false;
+
+  @override
+  bool get wantKeepAlive => false; // Don't keep the state alive
 
   @override
   void initState() {
     super.initState();
     _loadLoggedInUserId();
+    _loadProfile();
+  }
+
+  @override
+  void didUpdateWidget(ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload profile if userId changed
+    if (oldWidget.userId != widget.userId) {
+      _loadProfile();
+    }
   }
 
   Future<void> _loadLoggedInUserId() async {
@@ -35,6 +53,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _loggedInUserId = prefs.getString('user_id');
     });
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await fetchUserProfile(widget.userId);
+
+      // Check if we have a cached follow state for this user
+      final prefs = await SharedPreferences.getInstance();
+      final cachedFollowState = prefs.getBool('follow_state_${widget.userId}');
+
+      setState(() {
+        _userProfile = profile;
+        // Override with cached state if available
+        if (cachedFollowState != null) {
+          _userProfile = UserProfile(
+            userId: profile.userId,
+            email: profile.email,
+            username: profile.username,
+            bio: profile.bio,
+            profilePicture: profile.profilePicture,
+            followersCount: profile.followersCount,
+            followingCount: profile.followingCount,
+            postsCount: profile.postsCount,
+            isFollowing: cachedFollowState,
+          );
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleFollowToggle() async {
+    if (_userProfile == null || _isFollowLoading) return;
+
+    setState(() {
+      _isFollowLoading = true;
+    });
+
+    final response = await toggleFollow(targetUserId: widget.userId);
+
+    if (response.success && response.isFollowing != null) {
+      // Cache the follow state
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        'follow_state_${widget.userId}',
+        response.isFollowing!,
+      );
+
+      setState(() {
+        _userProfile = UserProfile(
+          userId: _userProfile!.userId,
+          email: _userProfile!.email,
+          username: _userProfile!.username,
+          bio: _userProfile!.bio,
+          profilePicture: _userProfile!.profilePicture,
+          followersCount: response.isFollowing!
+              ? _userProfile!.followersCount + 1
+              : _userProfile!.followersCount - 1,
+          followingCount: _userProfile!.followingCount,
+          postsCount: _userProfile!.postsCount,
+          isFollowing: response.isFollowing!,
+        );
+        _isFollowLoading = false;
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      setState(() {
+        _isFollowLoading = false;
+      });
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -49,167 +161,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
               elevation: 0,
             )
           : null,
-      body: FutureBuilder<UserProfile>(
-        future: fetchUserProfile(widget.userId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('No profile data available.'));
-          }
-
-          final userData = snapshot.data!;
-          final isOwnProfile = _loggedInUserId == userData.userId;
-
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile info section
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _userProfile == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('No profile data available.'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'User ID: ${widget.userId}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(userData.profilePicture),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatColumn('Posts', userData.postsCount),
-                            _buildStatColumn(
-                              'Followers',
-                              userData.followersCount,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const FollowScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildStatColumn(
-                              'Following',
-                              userData.followingCount,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const FollowScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLoading = true;
+                      });
+                      _loadProfile();
+                    },
+                    child: const Text('Retry'),
                   ),
-                ),
-
-                // Username & Bio + Follow / Update Profile
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userData.username,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile info section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage: NetworkImage(
+                            _userProfile!.profilePicture,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(userData.bio, style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 8),
-
-                      // "Update Profile" link for own profile
-                      if (isOwnProfile)
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UpdateProfile(),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatColumn(
+                                'Posts',
+                                _userProfile!.postsCount,
                               ),
-                            );
-                          },
-                          child: const Text(
-                            'Update Profile',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                              // decoration: TextDecoration.underline,
-                            ),
+                              _buildStatColumn(
+                                'Followers',
+                                _userProfile!.followersCount,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const FollowScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              _buildStatColumn(
+                                'Following',
+                                _userProfile!.followingCount,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const FollowScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
-
-                      const SizedBox(height: 12),
-
-                      // Follow button only for other users
-                      if (!isOwnProfile)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: userData.isFollowing
-                                  ? Colors.grey
-                                  : Colors.blue,
-                            ),
-                            child: Text(
-                              userData.isFollowing ? 'Following' : 'Follow',
-                            ),
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                const Divider(height: 32),
+                  // Username & Bio + Follow / Update Profile
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _userProfile!.username,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _userProfile!.bio,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
 
-                // Posts section
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: userData.postsCount == 0
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'No posts shared yet',
+                        // "Update Profile" link for own profile
+                        if (_loggedInUserId == _userProfile!.userId)
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const UpdateProfile(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Update Profile',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                                fontSize: 14,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            if (isOwnProfile)
-                              ElevatedButton(
-                                onPressed: widget.onSharePostTapped,
-                                child: const Text('Share a Post'),
+                          ),
+
+                        const SizedBox(height: 12),
+
+                        // Follow button only for other users
+                        if (_loggedInUserId != _userProfile!.userId)
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isFollowLoading
+                                  ? null
+                                  : _handleFollowToggle,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _userProfile!.isFollowing
+                                    ? Colors.grey
+                                    : Colors.blue,
                               ),
-                          ],
-                        )
-                      : const Text(
-                          'Posts Grid goes here',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                ),
-              ],
+                              child: _isFollowLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : Text(
+                                      _userProfile!.isFollowing
+                                          ? 'Unfollow'
+                                          : 'Follow',
+                                    ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const Divider(height: 32),
+
+                  // Posts section
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _userProfile!.postsCount == 0
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'No posts shared yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              if (_loggedInUserId == _userProfile!.userId)
+                                ElevatedButton(
+                                  onPressed: widget.onSharePostTapped,
+                                  child: const Text('Share a Post'),
+                                ),
+                            ],
+                          )
+                        : const Text(
+                            'Posts Grid goes here',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                  ),
+                ],
+              ),
             ),
-          );
-        },
-      ),
     );
   }
 
