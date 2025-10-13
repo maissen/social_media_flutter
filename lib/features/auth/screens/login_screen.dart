@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
+import 'restore_password_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -7,7 +8,7 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: null,
+      appBar: null, // No top bar here
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Center(
@@ -20,7 +21,22 @@ class LoginScreen extends StatelessWidget {
                 decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RestorePasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Forgot Password?'),
+                ),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   // TODO: Navigate to main app (after login)

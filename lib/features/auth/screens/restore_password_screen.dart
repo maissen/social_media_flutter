@@ -5,6 +5,12 @@ class RestorePasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('Restore Password Screen')));
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reset Password'),
+        // Back arrow appears automatically
+      ),
+      body: const Center(child: Text('Restore Password Screen')),
+    );
   }
 }
