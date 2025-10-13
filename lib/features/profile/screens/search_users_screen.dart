@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_helpers.dart';
+import 'package:demo/features/profile/screens/profile_screen.dart';
 
 class SearchUsersScreen extends StatefulWidget {
   const SearchUsersScreen({super.key});
@@ -75,7 +76,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                       ? GestureDetector(
                           onTap: () {
                             _controller.clear();
-                            _onSearchChanged(''); // reset search
+                            _onSearchChanged('');
                             setState(() => _users = []);
                           },
                           child: const Icon(Icons.close, color: Colors.grey),
@@ -128,7 +129,16 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           onTap: () {
-            // TODO: Navigate to user profile page
+            // Navigate to the ProfileScreen with user_id
+            if (user['user_id'] != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProfileScreen(userId: user['user_id'].toString()),
+                ),
+              );
+            }
           },
         );
       },
