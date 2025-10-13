@@ -127,33 +127,6 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: TextButton(
-            onPressed: () {
-              // TODO: implement follow/unfollow
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: user['is_following'] == true
-                  ? Colors.black
-                  : Colors.white,
-              backgroundColor: user['is_following'] == true
-                  ? Colors.grey[300]
-                  : Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              minimumSize: const Size(70, 32),
-            ),
-            child: Text(
-              user['is_following'] == true ? 'Following' : 'Follow',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: user['is_following'] == true
-                    ? Colors.black
-                    : Colors.white,
-              ),
-            ),
-          ),
           onTap: () {
             // TODO: Navigate to user profile page
           },
