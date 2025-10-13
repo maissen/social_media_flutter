@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_helpers.dart';
+import 'package:demo/features/profile/screens/profile_screen.dart';
 
 class FollowersScreen extends StatefulWidget {
   final String userId; // the user whose followers we want to display
@@ -144,7 +145,16 @@ class _FollowersScreenState extends State<FollowersScreen> {
                   ),
           ),
           onTap: () {
-            // TODO: Navigate to user profile page
+            final userId = user['user_id']?.toString();
+            if (userId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProfileScreen(userId: userId, showTopBanner: true),
+                ),
+              );
+            }
           },
         );
       },
