@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config/constants.dart'; // <-- import your baseApiUrl
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/constants.dart';
 
 class LoginResponse {
   final bool success;
@@ -26,6 +27,10 @@ Future<LoginResponse> loginUser({
     final body = jsonDecode(response.body);
 
     if (response.statusCode == 200 && body['success'] == true) {
+      // Save the token locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', body['data']['access_token']);
+
       return LoginResponse(
         success: true,
         message: body['message'] ?? 'Login successful',
@@ -96,4 +101,9 @@ Future<RegisterResponse> registerUser({
       data: null,
     );
   }
+}
+
+Future<String?> getAccessToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('access_token');
 }
