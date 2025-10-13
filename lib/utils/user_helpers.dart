@@ -5,7 +5,7 @@ import '../config/constants.dart';
 class SearchUsersResponse {
   final bool success;
   final String message;
-  final List<Map<String, dynamic>>? users;
+  final List<Map<String, dynamic>>? users; // ✅ users field
 
   SearchUsersResponse({
     required this.success,
@@ -14,7 +14,7 @@ class SearchUsersResponse {
   });
 }
 
-Future<SearchUsersResponse> searchUsers(String username) async {
+Future<SearchUsersResponse> searchUsers({required String username}) async {
   final url = Uri.parse(
     '${AppConstants.baseApiUrl}/users/search?username=$username',
   );
@@ -28,11 +28,9 @@ Future<SearchUsersResponse> searchUsers(String username) async {
     final body = jsonDecode(response.body);
 
     if (response.statusCode == 200 && body['success'] == true) {
-      // Parse the list of users
       final List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
         body['data'],
       );
-
       return SearchUsersResponse(
         success: true,
         message: body['message'] ?? 'Users retrieved successfully',
