@@ -2,9 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:demo/features/profile/screens/follow_screen.dart';
 import 'package:demo/features/profile/screens/update_profile.dart';
 import 'package:demo/utils/user_helpers.dart';
+import 'package:demo/features/profile/screens/followers_screen.dart';
+import 'package:demo/features/profile/screens/followings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -30,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _isFollowLoading = false;
 
   @override
-  bool get wantKeepAlive => false; // Don't keep the state alive
+  bool get wantKeepAlive => false;
 
   @override
   void initState() {
@@ -42,7 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void didUpdateWidget(ProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload profile if userId changed
     if (oldWidget.userId != widget.userId) {
       _loadProfile();
     }
@@ -59,13 +59,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final profile = await fetchUserProfile(widget.userId);
 
-      // Check if we have a cached follow state for this user
       final prefs = await SharedPreferences.getInstance();
       final cachedFollowState = prefs.getBool('follow_state_${widget.userId}');
 
       setState(() {
         _userProfile = profile;
-        // Override with cached state if available
         if (cachedFollowState != null) {
           _userProfile = UserProfile(
             userId: profile.userId,
@@ -98,7 +96,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     final response = await toggleFollow(targetUserId: widget.userId);
 
     if (response.success && response.isFollowing != null) {
-      // Cache the follow state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(
         'follow_state_${widget.userId}',
@@ -122,7 +119,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         _isFollowLoading = false;
       });
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -136,7 +132,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         _isFollowLoading = false;
       });
 
-      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -151,6 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: widget.showTopBanner
           ? AppBar(
@@ -164,196 +160,172 @@ class _ProfileScreenState extends State<ProfileScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _userProfile == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('No profile data available.'),
-                  const SizedBox(height: 8),
-                  Text(
-                    'User ID: ${widget.userId}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      _loadProfile();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
+          ? _buildErrorState()
           : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile info section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: NetworkImage(
-                            _userProfile!.profilePicture,
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStatColumn(
-                                'Posts',
-                                _userProfile!.postsCount,
-                              ),
-                              _buildStatColumn(
-                                'Followers',
-                                _userProfile!.followersCount,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const FollowScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                              _buildStatColumn(
-                                'Following',
-                                _userProfile!.followingCount,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const FollowScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Username & Bio + Follow / Update Profile
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _userProfile!.username,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _userProfile!.bio,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // "Update Profile" link for own profile
-                        if (_loggedInUserId == _userProfile!.userId)
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const UpdateProfile(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Update Profile',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-
-                        const SizedBox(height: 12),
-
-                        // Follow button only for other users
-                        if (_loggedInUserId != _userProfile!.userId)
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isFollowLoading
-                                  ? null
-                                  : _handleFollowToggle,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _userProfile!.isFollowing
-                                    ? Colors.grey
-                                    : Colors.blue,
-                              ),
-                              child: _isFollowLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    )
-                                  : Text(
-                                      _userProfile!.isFollowing
-                                          ? 'Unfollow'
-                                          : 'Follow',
-                                    ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
+                  _buildProfileHeader(),
+                  _buildUsernameBioSection(),
                   const Divider(height: 32),
-
-                  // Posts section
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _userProfile!.postsCount == 0
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'No posts shared yet',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              if (_loggedInUserId == _userProfile!.userId)
-                                ElevatedButton(
-                                  onPressed: widget.onSharePostTapped,
-                                  child: const Text('Share a Post'),
-                                ),
-                            ],
-                          )
-                        : const Text(
-                            'Posts Grid goes here',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                  ),
+                  _buildPostsSection(),
                 ],
               ),
+            ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('No profile data available.'),
+          const SizedBox(height: 8),
+          Text(
+            'User ID: ${widget.userId}',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+              });
+              _loadProfile();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundImage: NetworkImage(_userProfile!.profilePicture),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatColumn('Posts', _userProfile!.postsCount),
+                _buildStatColumn(
+                  'Followers',
+                  _userProfile!.followersCount,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FollowersScreen(userId: widget.userId),
+                      ),
+                    );
+                  },
+                ),
+                _buildStatColumn(
+                  'Following',
+                  _userProfile!.followingCount,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FollowingsScreen(userId: widget.userId),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUsernameBioSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _userProfile!.username,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 4),
+          Text(_userProfile!.bio, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 8),
+          if (_loggedInUserId == _userProfile!.userId)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UpdateProfile()),
+                );
+              },
+              child: const Text(
+                'Update Profile',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (_loggedInUserId != _userProfile!.userId)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isFollowLoading ? null : _handleFollowToggle,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _userProfile!.isFollowing
+                      ? Colors.grey
+                      : Colors.blue,
+                ),
+                child: _isFollowLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : Text(_userProfile!.isFollowing ? 'Unfollow' : 'Follow'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: _userProfile!.postsCount == 0
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'No posts shared yet',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (_loggedInUserId == _userProfile!.userId)
+                  ElevatedButton(
+                    onPressed: widget.onSharePostTapped,
+                    child: const Text('Share a Post'),
+                  ),
+              ],
+            )
+          : const Text(
+              'Posts Grid goes here',
+              style: TextStyle(color: Colors.grey),
             ),
     );
   }
@@ -373,7 +345,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (onTap != null) {
       return GestureDetector(onTap: onTap, child: content);
     }
-
     return content;
   }
 }
