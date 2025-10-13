@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:demo/utils/user_profile.dart'; // import the file where updateUserBio is
+import 'package:demo/utils/user_profile.dart'; // import your API functions
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfile extends StatefulWidget {
   const UpdateProfile({super.key});
@@ -11,6 +12,30 @@ class UpdateProfile extends StatefulWidget {
 class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController _bioController = TextEditingController();
   bool _isLoading = false;
+  bool _isFetching = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserBio();
+  }
+
+  Future<void> _loadUserBio() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '';
+
+      if (userId.isNotEmpty) {
+        final profile = await fetchUserProfile(userId);
+        _bioController.text = profile.bio; // set default value
+      }
+    } catch (e) {
+      // Optionally show an error
+      debugPrint('Failed to load user profile: $e');
+    } finally {
+      setState(() => _isFetching = false);
+    }
+  }
 
   void _updateBio() async {
     setState(() => _isLoading = true);
@@ -33,6 +58,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isFetching) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Update Profile'), centerTitle: true),
       body: Padding(
