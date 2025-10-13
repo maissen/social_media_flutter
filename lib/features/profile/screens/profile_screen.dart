@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:demo/utils/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/features/profile/screens/follow_screen.dart';
+import 'package:demo/features/profile/screens/update_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -80,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => FollowScreen(),
+                                    builder: (_) => const FollowScreen(),
                                   ),
                                 );
                               },
@@ -92,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => FollowScreen(),
+                                    builder: (_) => const FollowScreen(),
                                   ),
                                 );
                               },
@@ -104,7 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                // Username & Bio + Follow Button
+                // Username & Bio + Follow / Update Profile
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
@@ -119,6 +120,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(userData.bio, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(height: 8),
+
+                      // "Update Profile" link for own profile
+                      if (isOwnProfile)
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UpdateProfile(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Update Profile',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
 
                       // Follow button only for other users
