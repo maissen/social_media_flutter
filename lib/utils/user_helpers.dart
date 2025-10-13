@@ -139,3 +139,122 @@ Future<ToggleFollowResponse> toggleFollow({
     );
   }
 }
+
+// Common response class
+class FollowListResponse {
+  final bool success;
+  final String message;
+  final List<Map<String, dynamic>>? users;
+
+  FollowListResponse({
+    required this.success,
+    required this.message,
+    this.users,
+  });
+}
+
+// GET /users/followers?user_id=3
+Future<FollowListResponse> getFollowers({required String userId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return FollowListResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      users: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/followers?user_id=$userId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
+        body['data'],
+      );
+      return FollowListResponse(
+        success: true,
+        message: body['message'] ?? 'Followers retrieved successfully',
+        users: users,
+      );
+    } else {
+      return FollowListResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to fetch followers',
+        users: null,
+      );
+    }
+  } catch (e) {
+    return FollowListResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      users: null,
+    );
+  }
+}
+
+// GET /users/followings?user_id=3
+Future<FollowListResponse> getFollowings({required String userId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return FollowListResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      users: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/followings?user_id=$userId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
+        body['data'],
+      );
+      return FollowListResponse(
+        success: true,
+        message: body['message'] ?? 'Following list retrieved successfully',
+        users: users,
+      );
+    } else {
+      return FollowListResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to fetch followings',
+        users: null,
+      );
+    }
+  } catch (e) {
+    return FollowListResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      users: null,
+    );
+  }
+}
