@@ -17,14 +17,15 @@ class _UpdateProfileState extends State<UpdateProfile> {
   bool _isLoading = false;
   bool _isFetching = true;
   XFile? _selectedImage; // Changed from File? to XFile?
+  String _currentProfilePicture = ''; // Store current profile picture URL
 
   @override
   void initState() {
     super.initState();
-    _loadUserBio();
+    _loadUserProfile();
   }
 
-  Future<void> _loadUserBio() async {
+  Future<void> _loadUserProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '';
@@ -32,6 +33,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
       if (userId.isNotEmpty) {
         final profile = await fetchUserProfile(userId);
         _bioController.text = profile.bio;
+        _currentProfilePicture = profile.profilePicture;
       }
     } catch (e) {
       debugPrint('Failed to load user profile: $e');
@@ -52,11 +54,13 @@ class _UpdateProfileState extends State<UpdateProfile> {
   Future<void> _updateProfile() async {
     setState(() => _isLoading = true);
 
-    String message = '';
+    bool bioSuccess = false;
+    bool picSuccess = false;
+    String? newProfilePicUrl;
 
     // Update bio
     final bioResponse = await updateUserBio(_bioController.text);
-    message += 'Bio: ${bioResponse.message}\n';
+    bioSuccess = bioResponse.success;
 
     // Update profile picture if selected
     if (_selectedImage != null) {
@@ -69,29 +73,59 @@ class _UpdateProfileState extends State<UpdateProfile> {
       }
 
       final picResponse = await updateProfilePicture(fileToUpload);
-      message += 'Profile Picture: ${picResponse.message}';
+      picSuccess = picResponse.success;
 
-      // Clear selected image if successful
+      // Clear selected image and update profile picture if successful
       if (picResponse.success) {
-        setState(() => _selectedImage = null);
+        newProfilePicUrl = picResponse.fileUrl;
+        setState(() {
+          _selectedImage = null;
+          if (newProfilePicUrl != null) {
+            _currentProfilePicture = newProfilePicUrl;
+          }
+        });
       }
     }
 
     setState(() => _isLoading = false);
 
-    // Show combined result
+    // Show single success or error message
+    String message;
+    Color backgroundColor;
+
+    if (_selectedImage == null && bioSuccess) {
+      // Only bio was updated
+      message = 'Profile updated successfully';
+      backgroundColor = Colors.green;
+    } else if (_selectedImage != null && bioSuccess && picSuccess) {
+      // Both were updated
+      message = 'Profile updated successfully';
+      backgroundColor = Colors.green;
+    } else if (!bioSuccess && _selectedImage != null && !picSuccess) {
+      // Both failed
+      message = 'Failed to update profile';
+      backgroundColor = Colors.red;
+    } else if (!bioSuccess || (_selectedImage != null && !picSuccess)) {
+      // Partial success
+      message = 'Profile partially updated';
+      backgroundColor = Colors.orange;
+    } else {
+      message = 'Profile updated successfully';
+      backgroundColor = Colors.green;
+    }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message.trim()),
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 4),
+          content: Text(message),
+          backgroundColor: backgroundColor,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
 
-    // Optionally update bio field with returned value
-    if (bioResponse.success) {
+    // Update bio field with returned value
+    if (bioSuccess) {
       _bioController.text = bioResponse.newBio ?? _bioController.text;
     }
   }
@@ -120,9 +154,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
                       shape: BoxShape.circle,
                       color: Colors.grey[300],
                     ),
-                    child: _selectedImage != null
-                        ? ClipOval(
-                            child: kIsWeb
+                    child: ClipOval(
+                      child: _selectedImage != null
+                          ? (kIsWeb
                                 ? Image.network(
                                     _selectedImage!.path,
                                     fit: BoxFit.cover,
@@ -134,13 +168,27 @@ class _UpdateProfileState extends State<UpdateProfile> {
                                     fit: BoxFit.cover,
                                     width: 140,
                                     height: 140,
-                                  ),
-                          )
-                        : const Icon(
-                            Icons.person,
-                            size: 70,
-                            color: Colors.white,
-                          ),
+                                  ))
+                          : (_currentProfilePicture.isNotEmpty
+                                ? Image.network(
+                                    _currentProfilePicture,
+                                    fit: BoxFit.cover,
+                                    width: 140,
+                                    height: 140,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.person,
+                                        size: 70,
+                                        color: Colors.white,
+                                      );
+                                    },
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 70,
+                                    color: Colors.white,
+                                  )),
+                    ),
                   ),
                   Positioned(
                     bottom: 0,
