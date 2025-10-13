@@ -75,3 +75,67 @@ Future<SearchUsersResponse> searchUsers({required String username}) async {
     );
   }
 }
+
+class ToggleFollowResponse {
+  final bool success;
+  final String message;
+  final bool? isFollowing;
+
+  ToggleFollowResponse({
+    required this.success,
+    required this.message,
+    this.isFollowing,
+  });
+}
+
+Future<ToggleFollowResponse> toggleFollow({
+  required String targetUserId,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token'); // Get logged-in token
+
+  if (token == null) {
+    return ToggleFollowResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      isFollowing: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/follow-unfollow/?target_user_id=$targetUserId',
+  );
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      final isFollowing = body['data']?['is_following'] as bool?;
+      return ToggleFollowResponse(
+        success: true,
+        message: body['message'] ?? 'Follow/unfollow successful',
+        isFollowing: isFollowing,
+      );
+    } else {
+      return ToggleFollowResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to follow/unfollow user',
+        isFollowing: null,
+      );
+    }
+  } catch (e) {
+    return ToggleFollowResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      isFollowing: null,
+    );
+  }
+}
