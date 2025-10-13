@@ -48,6 +48,10 @@ Future<UserProfile> fetchUserProfile(String userId) async {
 
   final url = Uri.parse('${AppConstants.baseApiUrl}/users/profile/$userId');
 
+  // Debug print
+  print('Fetching user profile for ID: $userId');
+  print('Request URL: $url');
+
   final response = await http.get(
     url,
     headers: {'Authorization': 'Bearer $token'},

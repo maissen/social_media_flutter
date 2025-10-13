@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../features/feed/screens/feed_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/posts/screens/create_post_screen.dart';
@@ -14,6 +15,21 @@ class MainAppScreen extends StatefulWidget {
 
 class _MainAppScreenState extends State<MainAppScreen> {
   int _currentIndex = 0;
+  String? _loggedInUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLoggedInUserId();
+  }
+
+  Future<void> _loadLoggedInUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // Replace 'user_id' with the key you store the logged-in user's ID
+      _loggedInUserId = prefs.getString('user_id') ?? '';
+    });
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -23,14 +39,19 @@ class _MainAppScreenState extends State<MainAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild screens to pass the callback to ProfileScreen
+    // If the user ID is not loaded yet, show a loading indicator
+    if (_loggedInUserId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final List<Widget> screens = [
       const FeedScreen(),
+      // Pass the logged-in user ID to ProfileScreen
       ProfileScreen(
+        userId: _loggedInUserId!,
         onSharePostTapped: () {
-          // Switch to CreatePostScreen tab
           setState(() {
-            _currentIndex = 2;
+            _currentIndex = 2; // Switch to CreatePostScreen tab
           });
         },
       ),
@@ -42,11 +63,11 @@ class _MainAppScreenState extends State<MainAppScreen> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex, // active tab index
-        onTap: _onTabTapped, // switch tab on tap
-        type: BottomNavigationBarType.fixed, // fixed type for multiple items
-        selectedItemColor: Colors.blue, // highlight active tab
-        unselectedItemColor: Colors.grey, // inactive tab color
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         showSelectedLabels: true,
         showUnselectedLabels: true,
         items: const [
