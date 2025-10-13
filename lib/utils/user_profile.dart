@@ -70,3 +70,50 @@ Future<UserProfile> fetchUserProfile(String userId) async {
     );
   }
 }
+
+class UpdateBioResponse {
+  final bool success;
+  final String message;
+  final String? newBio;
+
+  UpdateBioResponse({
+    required this.success,
+    required this.message,
+    this.newBio,
+  });
+}
+
+Future<UpdateBioResponse> updateUserBio(String newBio) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token') ?? '';
+
+  final url = Uri.parse('${AppConstants.baseApiUrl}/users/update/bio');
+
+  try {
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'new_bio': newBio}),
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return UpdateBioResponse(
+        success: true,
+        message: body['message'] ?? 'Bio updated successfully',
+        newBio: body['data']?['new_bio'],
+      );
+    } else {
+      return UpdateBioResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to update bio',
+      );
+    }
+  } catch (e) {
+    return UpdateBioResponse(success: false, message: 'An error occurred: $e');
+  }
+}
