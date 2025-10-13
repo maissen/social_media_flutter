@@ -26,9 +26,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
       setState(() => _isLoading = true);
 
-      final response = await searchUsers(
-        username: query,
-      ); // ✅ named parameter fixed
+      final response = await searchUsers(username: query);
 
       if (mounted) {
         setState(() {
@@ -70,11 +68,21 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
               child: TextField(
                 controller: _controller,
                 onChanged: _onSearchChanged,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search',
-                  prefixIcon: Icon(Icons.search, color: Colors.grey),
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  suffixIcon: _controller.text.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _controller.clear();
+                            _onSearchChanged(''); // reset search
+                            setState(() => _users = []);
+                          },
+                          child: const Icon(Icons.close, color: Colors.grey),
+                        )
+                      : null,
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
             ),

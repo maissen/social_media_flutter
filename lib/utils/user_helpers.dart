@@ -17,9 +17,10 @@ class SearchUsersResponse {
 
 Future<SearchUsersResponse> searchUsers({required String username}) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token'); // Retrieve stored token
+  final token = prefs.getString('access_token'); // Retrieve token
+  final loggedInUserId = prefs.getString('user_id'); // Retrieve current user ID
 
-  if (token == null) {
+  if (token == null || loggedInUserId == null) {
     return SearchUsersResponse(
       success: false,
       message: 'User not authenticated. Please login.',
@@ -36,16 +37,24 @@ Future<SearchUsersResponse> searchUsers({required String username}) async {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token', // ✅ Add token here
+        'Authorization': 'Bearer $token', // Add Bearer token
       },
     );
 
     final body = jsonDecode(response.body);
 
     if (response.statusCode == 200 && body['success'] == true) {
-      final List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
+      List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
         body['data'],
       );
+
+      // Exclude the currently logged-in user (normalize strings)
+      users = users.where((user) {
+        final apiUserId = user['user_id'].toString().trim();
+        final currentUserId = loggedInUserId.toString().trim();
+        return apiUserId != currentUserId;
+      }).toList();
+
       return SearchUsersResponse(
         success: true,
         message: body['message'] ?? 'Users retrieved successfully',
