@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
+import 'dart:io';
 
 class UserProfile {
   final String userId;
@@ -115,5 +116,58 @@ Future<UpdateBioResponse> updateUserBio(String newBio) async {
     }
   } catch (e) {
     return UpdateBioResponse(success: false, message: 'An error occurred: $e');
+  }
+}
+
+class UpdateProfilePictureResponse {
+  final bool success;
+  final String message;
+  final String? fileUrl;
+
+  UpdateProfilePictureResponse({
+    required this.success,
+    required this.message,
+    this.fileUrl,
+  });
+}
+
+Future<UpdateProfilePictureResponse> updateProfilePicture(File file) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token') ?? '';
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/update-profile-picture',
+  );
+
+  try {
+    var request = http.MultipartRequest('PUT', url);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    // Attach file
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    // Send request
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return UpdateProfilePictureResponse(
+        success: true,
+        message: body['message'] ?? 'Profile picture updated successfully',
+        fileUrl: body['data']?['file_url'],
+      );
+    } else {
+      return UpdateProfilePictureResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to update profile picture',
+      );
+    }
+  } catch (e) {
+    return UpdateProfilePictureResponse(
+      success: false,
+      message: 'An error occurred: $e',
+    );
   }
 }

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:demo/utils/user_profile.dart'; // import your API functions
+import 'package:image_picker/image_picker.dart';
+import 'package:demo/utils/user_profile.dart'; // your API functions
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfile extends StatefulWidget {
@@ -13,6 +15,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController _bioController = TextEditingController();
   bool _isLoading = false;
   bool _isFetching = true;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -27,32 +30,58 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
       if (userId.isNotEmpty) {
         final profile = await fetchUserProfile(userId);
-        _bioController.text = profile.bio; // set default value
+        _bioController.text = profile.bio;
       }
     } catch (e) {
-      // Optionally show an error
       debugPrint('Failed to load user profile: $e');
     } finally {
       setState(() => _isFetching = false);
     }
   }
 
-  void _updateBio() async {
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() => _selectedImage = File(pickedFile.path));
+    }
+  }
+
+  Future<void> _updateProfile() async {
     setState(() => _isLoading = true);
 
-    final response = await updateUserBio(_bioController.text);
+    String message = '';
+
+    // Update bio
+    final bioResponse = await updateUserBio(_bioController.text);
+    message += 'Bio: ${bioResponse.message}\n';
+
+    // Update profile picture if selected
+    if (_selectedImage != null) {
+      final picResponse = await updateProfilePicture(_selectedImage!);
+      message += 'Profile Picture: ${picResponse.message}';
+    }
 
     setState(() => _isLoading = false);
 
+    // Show combined result
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(response.message),
-        backgroundColor: response.success ? Colors.green : Colors.red,
+        content: Text(message.trim()),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 4),
       ),
     );
 
-    if (response.success) {
-      _bioController.text = response.newBio ?? '';
+    // Optionally update bio field with returned value
+    if (bioResponse.success) {
+      _bioController.text = bioResponse.newBio ?? _bioController.text;
+    }
+
+    // Clear selected image if successful
+    if (_selectedImage != null) {
+      _selectedImage = null;
     }
   }
 
@@ -70,22 +99,40 @@ class _UpdateProfileState extends State<UpdateProfile> {
           children: [
             // Circular profile container
             Center(
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[300],
-                ),
-                child: const Icon(Icons.person, size: 70, color: Colors.white),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[300],
+                      image: _selectedImage != null
+                          ? DecorationImage(
+                              image: FileImage(_selectedImage!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _selectedImage == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 70,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.camera_alt, color: Colors.black),
+                      onPressed: _pickImage,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Upload new profile picture button
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text('Upload New Profile Picture'),
             ),
             const SizedBox(height: 20),
 
@@ -100,11 +147,11 @@ class _UpdateProfileState extends State<UpdateProfile> {
             ),
             const SizedBox(height: 20),
 
-            // Update profile (bio) button
+            // Update profile (bio & pic) button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateBio,
+                onPressed: _isLoading ? null : _updateProfile,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Update Profile'),
