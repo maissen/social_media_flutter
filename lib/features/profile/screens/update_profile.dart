@@ -1,7 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:demo/utils/user_profile.dart'; // import the file where updateUserBio is
 
-class UpdateProfile extends StatelessWidget {
+class UpdateProfile extends StatefulWidget {
   const UpdateProfile({super.key});
+
+  @override
+  State<UpdateProfile> createState() => _UpdateProfileState();
+}
+
+class _UpdateProfileState extends State<UpdateProfile> {
+  final TextEditingController _bioController = TextEditingController();
+  bool _isLoading = false;
+
+  void _updateBio() async {
+    setState(() => _isLoading = true);
+
+    final response = await updateUserBio(_bioController.text);
+
+    setState(() => _isLoading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(response.message),
+        backgroundColor: response.success ? Colors.green : Colors.red,
+      ),
+    );
+
+    if (response.success) {
+      _bioController.text = response.newBio ?? '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,10 +39,10 @@ class UpdateProfile extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Circular profile container (bigger)
+            // Circular profile container
             Center(
               child: Container(
-                width: 140, // increased size
+                width: 140,
                 height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -25,33 +53,32 @@ class UpdateProfile extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // Upload new profile picture button (placeholder, above bio)
+            // Upload new profile picture button
             ElevatedButton(
-              onPressed: () {
-                // Placeholder
-              },
+              onPressed: () {},
               child: const Text('Upload New Profile Picture'),
             ),
             const SizedBox(height: 20),
 
-            // Input for new bio
+            // Bio input
             TextField(
-              decoration: InputDecoration(
+              controller: _bioController,
+              decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'New Bio',
               ),
               maxLines: 3,
             ),
-            const Spacer(),
+            const SizedBox(height: 20),
 
-            // Bottom update profile button
+            // Update profile (bio) button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // Placeholder
-                },
-                child: const Text('Update Profile'),
+                onPressed: _isLoading ? null : _updateBio,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Update Profile'),
               ),
             ),
           ],
