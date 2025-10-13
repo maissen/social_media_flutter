@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
 
 class SearchUsersResponse {
   final bool success;
   final String message;
-  final List<Map<String, dynamic>>? users; // ✅ users field
+  final List<Map<String, dynamic>>? users;
 
   SearchUsersResponse({
     required this.success,
@@ -15,6 +16,17 @@ class SearchUsersResponse {
 }
 
 Future<SearchUsersResponse> searchUsers({required String username}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token'); // Retrieve stored token
+
+  if (token == null) {
+    return SearchUsersResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      users: null,
+    );
+  }
+
   final url = Uri.parse(
     '${AppConstants.baseApiUrl}/users/search?username=$username',
   );
@@ -22,7 +34,10 @@ Future<SearchUsersResponse> searchUsers({required String username}) async {
   try {
     final response = await http.get(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token', // ✅ Add token here
+      },
     );
 
     final body = jsonDecode(response.body);
