@@ -15,14 +15,6 @@ class MainAppScreen extends StatefulWidget {
 class _MainAppScreenState extends State<MainAppScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    FeedScreen(),
-    ProfileScreen(),
-    CreatePostScreen(),
-    SearchUsersScreen(),
-    ExploreScreen(),
-  ];
-
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -31,8 +23,24 @@ class _MainAppScreenState extends State<MainAppScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Use IndexedStack so all screens keep state, and rebuild ProfileScreen to pass the callback
+    final List<Widget> screens = [
+      const FeedScreen(),
+      ProfileScreen(
+        onSharePostTapped: () {
+          // Switch to the CreatePostScreen tab
+          setState(() {
+            _currentIndex = 2;
+          });
+        },
+      ),
+      const CreatePostScreen(),
+      const SearchUsersScreen(),
+      const ExploreScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,

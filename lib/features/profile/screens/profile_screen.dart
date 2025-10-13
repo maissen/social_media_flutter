@@ -1,39 +1,33 @@
 import 'package:flutter/material.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onSharePostTapped;
+
+  const ProfileScreen({super.key, this.onSharePostTapped});
 
   @override
   Widget build(BuildContext context) {
-    // Mock data from your API response
     const userData = {
       "user_id": "v4",
       "email": "user@example.com",
-      "username": "johndoe",
+      "username": "Maissen Belgacem",
       "bio": "Software developer and tech enthusiast",
       "profile_picture": "https://storage.com/profile.jpg",
       "followers_count": 150,
       "following_count": 200,
-      "posts_count": 45,
+      "posts_count": 0,
       "is_following": false,
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(userData['username'] as String),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Info Section
+            // Profile info section
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               child: Row(
                 children: [
-                  // Profile Picture
                   CircleAvatar(
                     radius: 40,
                     backgroundImage: NetworkImage(
@@ -41,7 +35,6 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 24),
-                  // Posts, Followers, Following
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -65,7 +58,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
 
-            // Username & Bio
+            // Username & bio
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -84,7 +77,6 @@ class ProfileScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 12),
-                  // Follow Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -107,13 +99,32 @@ class ProfileScreen extends StatelessWidget {
 
             const Divider(height: 32),
 
-            // Placeholder for Posts Grid
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Posts Grid goes here',
-                style: TextStyle(color: Colors.grey),
-              ),
+            // Posts section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: (userData['posts_count'] as int) == 0
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'No posts shared yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: onSharePostTapped,
+                          child: const Text('Share a Post'),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'Posts Grid goes here',
+                      style: TextStyle(color: Colors.grey),
+                    ),
             ),
           ],
         ),
