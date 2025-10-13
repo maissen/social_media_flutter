@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:demo/features/profile/screens/follow_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -75,10 +76,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _buildStatColumn(
                               'Followers',
                               userData.followersCount,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FollowScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             _buildStatColumn(
                               'Following',
                               userData.followingCount,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FollowScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -161,8 +178,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatColumn(String label, int count) {
-    return Column(
+  Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
+    final content = Column(
       children: [
         Text(
           count.toString(),
@@ -172,5 +189,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: content);
+    }
+
+    return content;
   }
 }
