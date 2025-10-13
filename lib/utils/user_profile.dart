@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http_parser/http_parser.dart';
 
 class UserProfile {
   final String userId;
@@ -131,10 +133,9 @@ class UpdateProfilePictureResponse {
   });
 }
 
-Future<UpdateProfilePictureResponse> updateProfilePicture(File file) async {
+Future<UpdateProfilePictureResponse> updateProfilePicture(dynamic file) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('access_token') ?? '';
-
   final url = Uri.parse(
     '${AppConstants.baseApiUrl}/users/update-profile-picture',
   );
@@ -143,13 +144,30 @@ Future<UpdateProfilePictureResponse> updateProfilePicture(File file) async {
     var request = http.MultipartRequest('PUT', url);
     request.headers['Authorization'] = 'Bearer $token';
 
-    // Attach file
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    if (kIsWeb) {
+      // For web: `file` must be an XFile from image_picker
+      final bytes = await file.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: file.name, // works on web
+          contentType: MediaType('image', 'jpeg'), // optional but recommended
+        ),
+      );
+    } else {
+      // For mobile: `file` is a dart:io File
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
+    }
 
-    // Send request
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
-
     final body = jsonDecode(response.body);
 
     if (response.statusCode == 200 && body['success'] == true) {

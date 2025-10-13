@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:demo/utils/user_profile.dart'; // your API functions
@@ -15,7 +16,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController _bioController = TextEditingController();
   bool _isLoading = false;
   bool _isFetching = true;
-  File? _selectedImage;
+  XFile? _selectedImage; // Changed from File? to XFile?
 
   @override
   void initState() {
@@ -44,7 +45,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() => _selectedImage = pickedFile); // Store XFile directly
     }
   }
 
@@ -59,29 +60,39 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
     // Update profile picture if selected
     if (_selectedImage != null) {
-      final picResponse = await updateProfilePicture(_selectedImage!);
+      // Pass the XFile for web or convert to File for mobile
+      dynamic fileToUpload;
+      if (kIsWeb) {
+        fileToUpload = _selectedImage!; // XFile for web
+      } else {
+        fileToUpload = File(_selectedImage!.path); // File for mobile
+      }
+
+      final picResponse = await updateProfilePicture(fileToUpload);
       message += 'Profile Picture: ${picResponse.message}';
+
+      // Clear selected image if successful
+      if (picResponse.success) {
+        setState(() => _selectedImage = null);
+      }
     }
 
     setState(() => _isLoading = false);
 
     // Show combined result
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message.trim()),
-        backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message.trim()),
+          backgroundColor: Colors.blue,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
 
     // Optionally update bio field with returned value
     if (bioResponse.success) {
       _bioController.text = bioResponse.newBio ?? _bioController.text;
-    }
-
-    // Clear selected image if successful
-    if (_selectedImage != null) {
-      _selectedImage = null;
     }
   }
 
@@ -108,27 +119,48 @@ class _UpdateProfileState extends State<UpdateProfile> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.grey[300],
-                      image: _selectedImage != null
-                          ? DecorationImage(
-                              image: FileImage(_selectedImage!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
                     ),
-                    child: _selectedImage == null
-                        ? const Icon(
+                    child: _selectedImage != null
+                        ? ClipOval(
+                            child: kIsWeb
+                                ? Image.network(
+                                    _selectedImage!.path,
+                                    fit: BoxFit.cover,
+                                    width: 140,
+                                    height: 140,
+                                  )
+                                : Image.file(
+                                    File(_selectedImage!.path),
+                                    fit: BoxFit.cover,
+                                    width: 140,
+                                    height: 140,
+                                  ),
+                          )
+                        : const Icon(
                             Icons.person,
                             size: 70,
                             color: Colors.white,
-                          )
-                        : null,
+                          ),
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.camera_alt, color: Colors.black),
-                      onPressed: _pickImage,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.camera_alt, color: Colors.black),
+                        onPressed: _pickImage,
+                      ),
                     ),
                   ),
                 ],
