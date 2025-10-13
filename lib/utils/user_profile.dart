@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/constants.dart'; // Make sure BASE_URL is defined here
+import '../config/constants.dart';
 
 class UserProfile {
   final String userId;
@@ -28,7 +28,7 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      userId: json['user_id'] ?? '',
+      userId: json['user_id']?.toString() ?? '', // Convert to string
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       bio: json['bio'] ?? '',
@@ -44,7 +44,7 @@ class UserProfile {
 /// Fetch user profile by ID
 Future<UserProfile> fetchUserProfile(String userId) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('token') ?? '';
+  final token = prefs.getString('access_token') ?? '';
 
   final url = Uri.parse('${AppConstants.baseApiUrl}/users/profile/$userId');
 
