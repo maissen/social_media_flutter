@@ -1,4 +1,5 @@
 // lib/features/auth/screens/login_screen.dart
+import 'package:demo/features/main_app_screen.dart';
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
 import 'restore_password_screen.dart';
@@ -42,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Navigate to ProfileScreen after successful login
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+        MaterialPageRoute(builder: (_) => const MainAppScreen()),
       );
     } else {
       ScaffoldMessenger.of(
