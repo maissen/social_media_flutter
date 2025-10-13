@@ -27,9 +27,11 @@ Future<LoginResponse> loginUser({
     final body = jsonDecode(response.body);
 
     if (response.statusCode == 200 && body['success'] == true) {
-      // Save the token locally
+      // Save the token, user_id, and expires_in locally
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('access_token', body['data']['access_token']);
+      await prefs.setString('user_id', body['data']['user']['user_id']);
+      await prefs.setInt('expires_in', body['data']['expires_in']);
 
       return LoginResponse(
         success: true,
