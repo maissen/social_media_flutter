@@ -185,6 +185,13 @@ Future<FollowListResponse> getFollowers({required String userId}) async {
       List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
         body['data'],
       );
+
+      // Normalize user_id to String for all users
+      users = users.map((user) {
+        user['user_id'] = user['user_id']?.toString();
+        return user;
+      }).toList();
+
       return FollowListResponse(
         success: true,
         message: body['message'] ?? 'Followers retrieved successfully',
@@ -238,6 +245,13 @@ Future<FollowListResponse> getFollowings({required String userId}) async {
       List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
         body['data'],
       );
+
+      // Normalize user_id to String for all users
+      users = users.map((user) {
+        user['user_id'] = user['user_id']?.toString();
+        return user;
+      }).toList();
+
       return FollowListResponse(
         success: true,
         message: body['message'] ?? 'Following list retrieved successfully',
