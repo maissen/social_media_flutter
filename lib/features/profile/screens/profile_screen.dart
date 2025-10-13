@@ -1,7 +1,9 @@
+// lib/features/profile/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_profile.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
   final String userId;
 
@@ -12,27 +14,45 @@ class ProfileScreen extends StatelessWidget {
   });
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String? _loggedInUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLoggedInUserId();
+  }
+
+  Future<void> _loadLoggedInUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _loggedInUserId = prefs.getString('user_id');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: FutureBuilder<UserProfile>(
-        future: fetchUserProfile(userId),
+        future: fetchUserProfile(widget.userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Loading indicator while fetching data
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            // Show error message
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData) {
-            // No data returned
             return const Center(child: Text('No profile data available.'));
           }
 
-          // Data loaded successfully
           final userData = snapshot.data!;
+          final isOwnProfile = _loggedInUserId == userData.userId;
 
           return SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Profile info section
                 Padding(
@@ -67,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Username & Bio
+                // Username & Bio + Follow Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
@@ -83,20 +103,23 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(userData.bio, style: const TextStyle(fontSize: 14)),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: userData.isFollowing
-                                ? Colors.grey
-                                : Colors.blue,
-                          ),
-                          child: Text(
-                            userData.isFollowing ? 'Following' : 'Follow',
+
+                      // Follow button only for other users
+                      if (!isOwnProfile)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: userData.isFollowing
+                                  ? Colors.grey
+                                  : Colors.blue,
+                            ),
+                            child: Text(
+                              userData.isFollowing ? 'Following' : 'Follow',
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -108,7 +131,6 @@ class ProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: userData.postsCount == 0
                       ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             const Text(
@@ -119,10 +141,11 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: onSharePostTapped,
-                              child: const Text('Share a Post'),
-                            ),
+                            if (isOwnProfile)
+                              ElevatedButton(
+                                onPressed: widget.onSharePostTapped,
+                                child: const Text('Share a Post'),
+                              ),
                           ],
                         )
                       : const Text(
