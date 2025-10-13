@@ -117,9 +117,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<void> _handleCreatePost() async {
     final content = _contentController.text.trim();
 
-    // Validate input
-    if (content.isEmpty && _selectedImage == null) {
-      _showErrorSnackBar('Please add a caption or select an image');
+    // Validate input - image is required
+    if (_selectedImage == null) {
+      _showErrorSnackBar('Please select an image');
       return;
     }
 
@@ -216,10 +216,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Post'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _handleBackNavigation,
-        ),
         actions: [
           if (_isLoading)
             const Center(
