@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/posts_helpers.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 // Global variable accessible anywhere in this file
 late GetPostResponse postResponse;
@@ -348,6 +349,15 @@ class _PostActions extends StatelessWidget {
     required this.createdAt,
   }) : super(key: key);
 
+  void _showCommentsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CommentsBottomSheet(postId: postId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -360,9 +370,16 @@ class _PostActions extends StatelessWidget {
               children: [
                 const Icon(Icons.comment_outlined),
                 const SizedBox(width: 4),
-                Text(
-                  '$commentsNbr comments',
-                  style: const TextStyle(fontSize: 14),
+                GestureDetector(
+                  onTap: () => _showCommentsBottomSheet(context),
+                  child: Text(
+                    '$commentsNbr comments',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.blue, // optional: make it look tappable
+                      decoration: TextDecoration.underline, // optional
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -379,11 +396,235 @@ class _PostActions extends StatelessWidget {
 }
 
 //! comment widgets
+class CommentsBottomSheet extends StatefulWidget {
+  final int postId;
+
+  const CommentsBottomSheet({super.key, required this.postId});
+
+  @override
+  State<CommentsBottomSheet> createState() => _CommentsBottomSheetState();
+}
+
+class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
+  final TextEditingController _commentController = TextEditingController();
+
+  late Future<GetCommentsResponse> _commentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentsFuture = getCommentsOfPost(postId: widget.postId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.85;
+
+    return Container(
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // --- Drag handle like Instagram ---
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          const Text(
+            'Comments',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          // --- Comments list ---
+          Expanded(
+            child: FutureBuilder<GetCommentsResponse>(
+              future: _commentsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final response = snapshot.data;
+                if (response == null ||
+                    !response.success ||
+                    response.data == null) {
+                  return Center(
+                    child: Text(response?.message ?? 'Failed to load comments'),
+                  );
+                }
+
+                final comments = response.data!;
+                if (comments.isEmpty) {
+                  return const Center(child: Text('No comments yet'));
+                }
+
+                return ListView.builder(
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    final username =
+                        comment['username'] ??
+                        comment['user']?['username'] ??
+                        'Unknown';
+                    final profilePic =
+                        comment['profile_picture'] ??
+                        comment['user']?['profile_picture'] ??
+                        '';
+                    final text = comment['comment_payload'] ?? '';
+                    final createdAt = comment['created_at'] ?? '';
+                    final isLiked = comment['is_liked_by_me'] ?? false;
+                    final likes = comment['likes_nbr'] ?? 0;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Profile picture
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundImage: profilePic.isNotEmpty
+                                ? NetworkImage(profilePic)
+                                : const AssetImage('assets/default_profile.png')
+                                      as ImageProvider,
+                          ),
+                          const SizedBox(width: 10),
+
+                          // Comment content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                RichText(
+                                  text: TextSpan(
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 14,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: '$username ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      TextSpan(text: text),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      timeago.format(
+                                        DateTime.parse(createdAt),
+                                        locale: 'en_short',
+                                      ),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (likes > 0)
+                                      Text(
+                                        '$likes likes',
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Like button
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                comment['is_liked_by_me'] = !isLiked;
+                                comment['likes_nbr'] = isLiked
+                                    ? likes - 1
+                                    : likes + 1;
+                              });
+                            },
+                            icon: Icon(
+                              isLiked ? Icons.favorite : Icons.favorite_border,
+                              color: isLiked ? Colors.red : Colors.grey,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // --- Comment input like Instagram ---
+          SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 18,
+                  backgroundImage: AssetImage('assets/default_profile.png'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: const InputDecoration(
+                      hintText: 'Add a comment...',
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (_commentController.text.trim().isNotEmpty) {
+                      // Handle sending comment
+                    }
+                  },
+                  child: const Text(
+                    'Post',
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class CommentInput extends StatelessWidget {
   final TextEditingController controller;
   final int postId;
-  final VoidCallback? onCommentAdded; // Optional callback to refresh comments
+  final VoidCallback? onCommentAdded; // callback to refresh UI after comment
 
   const CommentInput({
     Key? key,
@@ -403,13 +644,13 @@ class CommentInput extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.emoji_emotions_outlined),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: controller,
-                decoration: const InputDecoration(
-                  hintText: 'Add a comment...',
+                decoration: InputDecoration(
+                  hintText:
+                      'Add a comment ${postResponse.post?['username'] ?? '...'}',
                   border: InputBorder.none,
                 ),
               ),
@@ -419,7 +660,6 @@ class CommentInput extends StatelessWidget {
               onPressed: () async {
                 final content = controller.text.trim();
                 if (content.isNotEmpty) {
-                  // Disable the button while submitting
                   FocusScope.of(context).unfocus(); // hide keyboard
 
                   final response = await createComment(
@@ -428,11 +668,16 @@ class CommentInput extends StatelessWidget {
                   );
 
                   if (response.success) {
-                    controller.clear(); // clear input
+                    controller.clear();
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Comment added!')),
                     );
-                    if (onCommentAdded != null) onCommentAdded!();
+
+                    // 🔥 Notify parent to refresh the comment count or list
+                    if (onCommentAdded != null) {
+                      onCommentAdded!();
+                    }
                   } else {
                     ScaffoldMessenger.of(
                       context,
