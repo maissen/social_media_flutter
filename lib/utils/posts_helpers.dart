@@ -517,7 +517,7 @@ Future<LikeCommentResponse> likeOrDislikeComment({
   }
 
   final url = Uri.parse(
-    '${AppConstants.baseApiUrl}/posts/comments/like-deslike/$commentId',
+    '${AppConstants.baseApiUrl}/posts/comments/like-dislike?comment_id=$commentId',
   );
 
   try {

@@ -407,51 +407,187 @@ class CommentsBottomSheet extends StatefulWidget {
 
 class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   final TextEditingController _commentController = TextEditingController();
-  List<Map<String, dynamic>>? comments; // variable to hold comments
+  List<Map<String, dynamic>>? comments;
 
   @override
   void initState() {
     super.initState();
-
-    List<Map<String, dynamic>>? comments;
-
     _loadComments();
   }
 
-  // simple async function to load comments
   void _loadComments() async {
     final response = await getCommentsOfPost(postId: widget.postId);
 
     if (response.success && response.data != null) {
       setState(() {
-        comments = response.data; // assign API data
+        comments = response.data;
       });
     } else {
       setState(() {
-        comments = null; // or keep empty list if you prefer: []
+        comments = [];
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.6,
+    final height = MediaQuery.of(context).size.height * 0.85;
+
+    return Container(
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
         color: Colors.white,
-        child: comments == null
-            ? const Center(child: Text('Failed to load comments'))
-            : ListView.builder(
-                itemCount: comments!.length,
-                itemBuilder: (context, index) {
-                  final comment = comments![index];
-                  return ListTile(
-                    title: Text(comment['username'] ?? 'Unknown'),
-                    subtitle: Text(comment['comment_payload'] ?? ''),
-                  );
-                },
-              ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // --- Drag handle ---
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          const Text(
+            'Comments',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          // --- Comments list ---
+          Expanded(
+            child: comments == null || comments!.isEmpty
+                ? const Center(child: Text('No comments yet'))
+                : ListView.builder(
+                    itemCount: comments!.length,
+                    itemBuilder: (context, index) {
+                      final comment = comments![index];
+                      final username =
+                          comment['username'] ??
+                          comment['user']?['username'] ??
+                          'Unknown';
+                      final profilePic =
+                          comment['profile_picture'] ??
+                          comment['user']?['profile_picture'] ??
+                          '';
+                      final text = comment['comment_payload'] ?? '';
+                      final createdAt = comment['created_at'] ?? '';
+                      final isLiked = comment['is_liked_by_me'] ?? false;
+                      final likes = comment['likes_nbr'] ?? 0;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile picture
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundImage: profilePic.isNotEmpty
+                                  ? NetworkImage(profilePic)
+                                  : null,
+                              backgroundColor: Colors.grey[300],
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Comment content
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RichText(
+                                    text: TextSpan(
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 14,
+                                      ),
+                                      children: [
+                                        TextSpan(
+                                          text: '$username ',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        TextSpan(text: text),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        createdAt.isNotEmpty
+                                            ? timeago.format(
+                                                DateTime.parse(createdAt),
+                                                locale: 'en_short',
+                                              )
+                                            : '',
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (likes > 0)
+                                        Text(
+                                          '$likes likes',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Like button
+                            IconButton(
+                              onPressed: () async {
+                                final response = await likeOrDislikeComment(
+                                  commentId: comment['comment_id'],
+                                );
+
+                                if (response.success && response.data != null) {
+                                  setState(() {
+                                    final wasLiked =
+                                        comment['is_liked_by_me'] ?? false;
+                                    comment['is_liked_by_me'] = !wasLiked;
+
+                                    final likes = comment['likes_nbr'] ?? 0;
+                                    comment['likes_nbr'] = wasLiked
+                                        ? likes - 1
+                                        : likes + 1;
+                                  });
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(response.message)),
+                                  );
+                                }
+                              },
+                              icon: Icon(
+                                comment['is_liked_by_me'] == true
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: comment['is_liked_by_me'] == true
+                                    ? Colors.red
+                                    : Colors.grey,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
