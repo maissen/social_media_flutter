@@ -42,17 +42,15 @@ class _PostWidgetState extends State<PostWidget> {
   Widget build(BuildContext context) {
     final post = widget.post;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      color: Colors.white, // Pure white background like Instagram
+      margin: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- Header (profile) ---
           InkWell(
             onTap: () {
-              // Navigate to profile screen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -65,25 +63,28 @@ class _PostWidgetState extends State<PostWidget> {
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 18,
+                    radius: 20,
                     backgroundImage: NetworkImage(
                       postOwner?.profilePicture?.isNotEmpty == true
                           ? postOwner!.profilePicture
                           : 'https://i.pravatar.cc/150?img=${post.userId}',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           postOwner?.username ?? 'User ${post.userId}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                         ),
                         Text(
                           DateFormat.yMMMd().add_jm().format(post.createdAt),
@@ -100,16 +101,16 @@ class _PostWidgetState extends State<PostWidget> {
             ),
           ),
 
-          // --- Post content text ---
+          // --- Post content text (caption) ---
           if (post.content.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Text(post.content),
             ),
 
           // --- Media Section (Image or Placeholder) ---
           AspectRatio(
-            aspectRatio: 1, // Instagram-style square
+            aspectRatio: 1, // Instagram square format
             child: post.mediaUrl.isNotEmpty
                 ? Image.network(
                     post.mediaUrl,
@@ -127,19 +128,25 @@ class _PostWidgetState extends State<PostWidget> {
 
           // --- Likes & Comments ---
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 Icon(
                   post.isLikedByMe ? Icons.favorite : Icons.favorite_border,
-                  color: post.isLikedByMe ? Colors.red : Colors.grey,
+                  color: post.isLikedByMe ? Colors.red : Colors.black,
                 ),
-                const SizedBox(width: 4),
-                Text('${post.likesNbr} likes'),
+                const SizedBox(width: 6),
+                Text(
+                  '${post.likesNbr}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(width: 16),
-                const Icon(Icons.comment, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text('${post.commentsNbr} comments'),
+                const Icon(Icons.mode_comment_outlined, color: Colors.black),
+                const SizedBox(width: 6),
+                Text(
+                  '${post.commentsNbr}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),
@@ -151,7 +158,7 @@ class _PostWidgetState extends State<PostWidget> {
   /// Placeholder for when there's no image or an error occurs
   Widget _buildPlaceholder() {
     return Container(
-      color: Colors.grey[300],
+      color: Colors.black12,
       child: const Center(
         child: Icon(Icons.image_outlined, size: 60, color: Colors.grey),
       ),
