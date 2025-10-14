@@ -5,7 +5,6 @@ import 'package:demo/utils/posts_helpers.dart';
 
 class PostScreen extends StatefulWidget {
   final String postId;
-
   const PostScreen({Key? key, required this.postId}) : super(key: key);
 
   @override
@@ -28,16 +27,8 @@ class _PostScreenState extends State<PostScreen> {
   Future<void> _loadLoggedInUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userIdStr = prefs.getString('user_id');
-    if (userIdStr != null) {
-      _loggedInUserId = int.tryParse(userIdStr);
-    }
+    if (userIdStr != null) _loggedInUserId = int.tryParse(userIdStr);
     _fetchPost();
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
   }
 
   Future<void> _fetchPost() async {
@@ -48,13 +39,9 @@ class _PostScreenState extends State<PostScreen> {
 
     try {
       final postResponse = await getPostById(int.parse(widget.postId));
-
       if (postResponse.success && postResponse.post != null) {
-        Map<String, dynamic> postData = postResponse.post!;
-
-        // Use likes_nbr and is_liked_by_me directly from postData
         setState(() {
-          _postData = postData;
+          _postData = postResponse.post!;
           _isLoading = false;
         });
       } else {
@@ -71,11 +58,234 @@ class _PostScreenState extends State<PostScreen> {
     }
   }
 
-  Widget _buildMedia() {
-    final mediaUrl = _postData!['media_url'];
-    const double aspectRatio = 1.0;
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
-    if (mediaUrl == null || mediaUrl.toString().isEmpty) {
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_errorMessage != null)
+      return Scaffold(body: Center(child: Text(_errorMessage!)));
+    if (_postData == null)
+      return const Scaffold(body: Center(child: Text('Post not found')));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Post')),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: PostContent(
+                postData: _postData!,
+                loggedInUserId: _loggedInUserId,
+                onUpdate: (updatedPost) {
+                  setState(() => _postData = updatedPost);
+                },
+                onDelete: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+          CommentInput(controller: _commentController),
+        ],
+      ),
+    );
+  }
+}
+
+class PostContent extends StatelessWidget {
+  final Map<String, dynamic> postData;
+  final int? loggedInUserId;
+  final ValueChanged<Map<String, dynamic>> onUpdate;
+  final VoidCallback onDelete;
+
+  const PostContent({
+    Key? key,
+    required this.postData,
+    required this.loggedInUserId,
+    required this.onUpdate,
+    required this.onDelete,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PostHeader(
+          postData: postData,
+          loggedInUserId: loggedInUserId,
+          onUpdate: onUpdate,
+          onDelete: onDelete,
+        ),
+        const SizedBox(height: 16),
+        PostMedia(mediaUrl: postData['media_url']),
+        const SizedBox(height: 16),
+        if (postData['content'] != null)
+          Text(postData['content'], style: const TextStyle(fontSize: 16)),
+        const SizedBox(height: 16),
+        _PostActions(
+          postId: postData['post_id'],
+          likesNbr: postData['likes_nbr'] ?? 0,
+          isLikedByMe: postData['is_liked_by_me'] ?? false,
+          commentsNbr: postData['comments_nbr'] ?? 0,
+          createdAt: postData['created_at'],
+        ),
+      ],
+    );
+  }
+}
+
+class _PostHeader extends StatelessWidget {
+  final Map<String, dynamic> postData;
+  final int? loggedInUserId;
+  final ValueChanged<Map<String, dynamic>> onUpdate;
+  final VoidCallback onDelete;
+
+  const _PostHeader({
+    Key? key,
+    required this.postData,
+    required this.loggedInUserId,
+    required this.onUpdate,
+    required this.onDelete,
+  }) : super(key: key);
+
+  void _showUpdateDialog(BuildContext context) {
+    final controller = TextEditingController(text: postData['content'] ?? '');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Update Post'),
+        content: TextField(
+          controller: controller,
+          maxLines: null,
+          maxLength: 100,
+          decoration: const InputDecoration(
+            hintText: 'Edit your post...',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newContent = controller.text.trim();
+              if (newContent.isEmpty) return;
+              Navigator.pop(context);
+              final response = await updatePost(
+                postId: postData['post_id'],
+                newContent: newContent,
+              );
+              if (response.success && response.data != null) {
+                final updatedPost = Map<String, dynamic>.from(postData);
+                updatedPost['content'] = response.data!['new_content'];
+                onUpdate(updatedPost);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post updated successfully!')),
+                );
+              } else {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(response.message)));
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final response = await deletePost(postId: postData['post_id']);
+              if (response.success) {
+                onDelete();
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(response.message)));
+              } else {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(response.message)));
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isOwner =
+        loggedInUserId != null && postData['user']['user_id'] == loggedInUserId;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: postData['user']['profile_picture'] != null
+                  ? NetworkImage(postData['user']['profile_picture'])
+                  : null,
+              radius: 24,
+              child: postData['user']['profile_picture'] == null
+                  ? const Icon(Icons.person)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              postData['user']['username'] ?? '',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        if (isOwner)
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'update') _showUpdateDialog(context);
+              if (value == 'delete') _showDeleteDialog(context);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'update', child: Text('Update Post')),
+              PopupMenuItem(value: 'delete', child: Text('Delete Post')),
+            ],
+            icon: const Icon(Icons.more_vert),
+          ),
+      ],
+    );
+  }
+}
+
+class PostMedia extends StatelessWidget {
+  final String? mediaUrl;
+  const PostMedia({Key? key, this.mediaUrl}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    const double aspectRatio = 1.0;
+    if (mediaUrl == null || mediaUrl!.isEmpty) {
       return AspectRatio(
         aspectRatio: aspectRatio,
         child: Container(
@@ -94,10 +304,10 @@ class _PostScreenState extends State<PostScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
-          mediaUrl,
+          mediaUrl!,
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (context, error, stackTrace) => Container(
+          errorBuilder: (_, __, ___) => Container(
             color: Colors.grey[300],
             child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
           ),
@@ -112,273 +322,97 @@ class _PostScreenState extends State<PostScreen> {
       ),
     );
   }
+}
 
-  void _showUpdateDialog() {
-    final TextEditingController _updateController = TextEditingController(
-      text: _postData!['content'] ?? '',
-    );
+class _PostActions extends StatelessWidget {
+  final int postId;
+  final int likesNbr;
+  final bool isLikedByMe;
+  final int commentsNbr;
+  final String createdAt;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Update Post'),
-          content: TextField(
-            controller: _updateController,
-            maxLines: null,
-            maxLength: 100,
-            decoration: const InputDecoration(
-              hintText: 'Edit your post...',
-              counterText: '',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final newContent = _updateController.text.trim();
-                if (newContent.isEmpty) return;
-
-                Navigator.pop(context);
-                setState(() {
-                  _isLoading = true;
-                });
-
-                final response = await updatePost(
-                  postId: int.parse(widget.postId),
-                  newContent: newContent,
-                );
-
-                setState(() {
-                  _isLoading = false;
-                  if (response.success && response.data != null) {
-                    _postData!['content'] = response.data!['new_content'];
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Post updated successfully!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(response.message)));
-                  }
-                });
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showDeleteDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Post'),
-          content: const Text('Are you sure you want to delete this post?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                setState(() {
-                  _isLoading = true;
-                });
-
-                final response = await deletePost(
-                  postId: int.parse(widget.postId),
-                );
-
-                setState(() {
-                  _isLoading = false;
-                });
-
-                if (response.success) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(response.message)));
-                  Navigator.pop(context); // Close PostScreen
-                } else {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(response.message)));
-                }
-              },
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  const _PostActions({
+    Key? key,
+    required this.postId,
+    required this.likesNbr,
+    required this.isLikedByMe,
+    required this.commentsNbr,
+    required this.createdAt,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Post')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(child: Text(_errorMessage!))
-          : _postData == null
-          ? const Center(child: Text('Post not found'))
-          : Column(
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            LikeButton(
+              postId: postId,
+              initialLikes: likesNbr,
+              initiallyLiked: isLikedByMe,
+            ),
+            Row(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundImage:
-                                      _postData!['user']['profile_picture'] !=
-                                          null
-                                      ? NetworkImage(
-                                          _postData!['user']['profile_picture'],
-                                        )
-                                      : null,
-                                  radius: 24,
-                                  child:
-                                      _postData!['user']['profile_picture'] ==
-                                          null
-                                      ? const Icon(Icons.person)
-                                      : null,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  _postData!['user']['username'] ?? '',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_loggedInUserId != null &&
-                                _postData!['user']['user_id'] ==
-                                    _loggedInUserId)
-                              PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'update') {
-                                    _showUpdateDialog();
-                                  } else if (value == 'delete') {
-                                    _showDeleteDialog();
-                                  }
-                                },
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(
-                                    value: 'update',
-                                    child: Text('Update Post'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Delete Post'),
-                                  ),
-                                ],
-                                icon: const Icon(Icons.more_vert),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildMedia(),
-                        const SizedBox(height: 16),
-                        if (_postData!['content'] != null)
-                          Text(
-                            _postData!['content'],
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            LikeButton(
-                              postId: int.parse(widget.postId),
-                              initialLikes: _postData!['likes_nbr'] ?? 0,
-                              initiallyLiked:
-                                  _postData!['is_liked_by_me'] ?? false,
-                            ),
-                            Row(
-                              children: [
-                                const Icon(Icons.comment_outlined),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${_postData!['comments_nbr']} comments',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Posted on: ${_postData!['created_at']}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: Colors.grey[300]!)),
-                      color: Colors.white,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.emoji_emotions_outlined),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            decoration: const InputDecoration(
-                              hintText: 'Add a comment...',
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.send, color: Colors.blue),
-                          onPressed: () {
-                            if (_commentController.text.isNotEmpty) {
-                              print(
-                                'Comment typed: ${_commentController.text}',
-                              );
-                              _commentController.clear();
-                              // TODO: call API to add comment
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                const Icon(Icons.comment_outlined),
+                const SizedBox(width: 4),
+                Text(
+                  '$commentsNbr comments',
+                  style: const TextStyle(fontSize: 14),
                 ),
               ],
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Posted on: $createdAt',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+class CommentInput extends StatelessWidget {
+  final TextEditingController controller;
+  const CommentInput({Key? key, required this.controller}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey[300]!)),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.emoji_emotions_outlined),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: 'Add a comment...',
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.send, color: Colors.blue),
+              onPressed: () {
+                if (controller.text.isNotEmpty) {
+                  print('Comment typed: ${controller.text}');
+                  controller.clear();
+                  // TODO: call API to add comment
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -412,7 +446,7 @@ class _LikeButtonState extends State<LikeButton> {
   }
 
   Future<void> _toggleLike() async {
-    if (_isLoading) return; // prevent multiple taps
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     final response = await likeOrDislikePost(postId: widget.postId);
