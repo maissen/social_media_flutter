@@ -50,6 +50,49 @@ class _PostScreenState extends State<PostScreen> {
     }
   }
 
+  Widget _buildMedia() {
+    final mediaUrl = _postData!['media_url'];
+    const double aspectRatio = 1.0; // Instagram square format
+
+    if (mediaUrl == null || mediaUrl.toString().isEmpty) {
+      // Placeholder for posts without an image
+      return AspectRatio(
+        aspectRatio: aspectRatio,
+        child: Container(
+          color: Colors.grey[300],
+          child: const Icon(
+            Icons.image_not_supported_outlined,
+            size: 80,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+
+    return AspectRatio(
+      aspectRatio: aspectRatio,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          mediaUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.grey[300],
+            child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+          ),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: Colors.grey[300],
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,23 +137,8 @@ class _PostScreenState extends State<PostScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Media
-                    if (_postData!['media_url'] != null &&
-                        _postData!['media_url'].toString().isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          _postData!['media_url'],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                color: Colors.grey[300],
-                                height: 300,
-                                child: const Icon(Icons.broken_image),
-                              ),
-                        ),
-                      ),
+                    // Media (with placeholder)
+                    _buildMedia(),
 
                     const SizedBox(height: 16),
 
