@@ -19,7 +19,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
   }
 
   Future<void> _checkAuth() async {
-    // Delay for splash effect
+    // Optional delay for splash effect
     await Future.delayed(const Duration(seconds: 2));
 
     final isValid = await isTokenValid();
@@ -37,24 +37,8 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea), // Purple
-              Color(0xFF764ba2), // Deep Purple
-              Color(0xFFf093fb), // Pink
-            ],
-          ),
-        ),
-        child: Center(
-          child: Center(
-            child: Image.asset('assets/main_logo.png', width: 150, height: 150),
-          ),
-        ),
-      ),
+      backgroundColor: const Color(0xFFdee2ff), // full screen color
+      body: Center(child: Text("Maissen Belgacem")),
     );
   }
 }
