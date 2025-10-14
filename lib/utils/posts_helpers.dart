@@ -131,3 +131,111 @@ Future<GetPostResponse> getPostById(int postId) async {
     );
   }
 }
+
+class UpdatePostResponse {
+  final bool success;
+  final String message;
+  final Map<String, dynamic>? data;
+
+  UpdatePostResponse({required this.success, required this.message, this.data});
+}
+
+class DeletePostResponse {
+  final bool success;
+  final String message;
+
+  DeletePostResponse({required this.success, required this.message});
+}
+
+/// Update a post's text content
+Future<UpdatePostResponse> updatePost({
+  required int postId,
+  required String newContent,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return UpdatePostResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      data: null,
+    );
+  }
+
+  final url = Uri.parse('${AppConstants.baseApiUrl}/posts/update/$postId');
+
+  try {
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'new_content': newContent}),
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return UpdatePostResponse(
+        success: true,
+        message: body['message'] ?? 'Post updated successfully',
+        data: body['data'],
+      );
+    } else {
+      return UpdatePostResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to update post',
+        data: null,
+      );
+    }
+  } catch (e) {
+    return UpdatePostResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      data: null,
+    );
+  }
+}
+
+/// Delete a post
+Future<DeletePostResponse> deletePost({required int postId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return DeletePostResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+    );
+  }
+
+  final url = Uri.parse('${AppConstants.baseApiUrl}/posts/delete/$postId');
+
+  try {
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return DeletePostResponse(
+        success: true,
+        message: body['message'] ?? 'Post deleted successfully',
+      );
+    } else {
+      return DeletePostResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to delete post',
+      );
+    }
+  } catch (e) {
+    return DeletePostResponse(success: false, message: 'An error occurred: $e');
+  }
+}
