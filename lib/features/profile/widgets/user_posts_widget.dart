@@ -1,6 +1,7 @@
 // lib/features/profile/widgets/user_posts_widget.dart
 import 'package:flutter/material.dart';
 import 'package:demo/utils/user_profile.dart';
+import 'package:demo/features/posts/screens/post_screen.dart';
 
 class UserPostsWidget extends StatefulWidget {
   final String profileUserId;
@@ -55,6 +56,13 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
     }
   }
 
+  void _navigateToPostScreen(String postId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PostScreen(postId: postId)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -100,7 +108,8 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
         final post = _userPosts![index];
         return GestureDetector(
           onTap: () {
-            // Navigate to post detail or perform other action
+            // Navigate to post detail screen with the post ID
+            _navigateToPostScreen(post.postId);
           },
           child: Container(
             decoration: BoxDecoration(color: Colors.grey[300]),
