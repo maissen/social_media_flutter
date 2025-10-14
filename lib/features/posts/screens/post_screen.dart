@@ -472,9 +472,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           comment['user']?['username'] ??
                           'Unknown';
                       final profilePic =
-                          comment['profile_picture'] ??
-                          comment['user']?['profile_picture'] ??
-                          '';
+                          (comment['profile_picture'] != null &&
+                              comment['profile_picture'].toString().isNotEmpty)
+                          ? comment['profile_picture']
+                          : comment['user']?['profile_picture'] ?? '';
                       final text = comment['comment_payload'] ?? '';
                       final createdAt = comment['created_at'] ?? '';
                       final isLiked = comment['is_liked_by_me'] ?? false;
