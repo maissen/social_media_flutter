@@ -3,24 +3,29 @@ import 'package:demo/utils/posts_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:demo/utils/feed_helpers.dart'; // Post model
-import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile
+import 'package:demo/utils/feed_helpers.dart';
+import 'package:demo/utils/user_helpers.dart';
 import 'package:demo/utils/user_profile.dart';
 import 'package:demo/features/profile/screens/profile_screen.dart';
 
 class PostWidget extends StatefulWidget {
-  final Post post;
+  final int postId;
   final Function(String postId)? onDelete;
   final Function(String postId)? onUpdate;
 
-  const PostWidget({Key? key, required this.post, this.onDelete, this.onUpdate})
-    : super(key: key);
+  const PostWidget({
+    Key? key,
+    required this.postId,
+    this.onDelete,
+    this.onUpdate,
+  }) : super(key: key);
 
   @override
   _PostWidgetState createState() => _PostWidgetState();
 }
 
 class _PostWidgetState extends State<PostWidget> {
+  Post? post;
   UserProfile? postOwner;
   bool isLoading = true;
   String? loggedInUserId;
@@ -28,6 +33,10 @@ class _PostWidgetState extends State<PostWidget> {
   // Local states for likes
   bool _isLiked = false;
   int _likesCount = 0;
+  int _commentsCount = 0;
+
+  // Local state for content
+  String _currentContent = '';
 
   // Flag to hide the widget after deletion
   bool _isDeleted = false;
@@ -35,17 +44,44 @@ class _PostWidgetState extends State<PostWidget> {
   @override
   void initState() {
     super.initState();
-    _fetchPostOwner();
+    _fetchPost();
     _fetchLoggedInUserId();
+  }
 
-    // Initialize local like state safely
-    _isLiked = widget.post.isLikedByMe;
-    _likesCount = widget.post.likesNbr;
+  Future<void> _fetchPost() async {
+    try {
+      final response = await getPostById(widget.postId);
+
+      if (response.success && response.post != null) {
+        final postData = response.post!;
+
+        setState(() {
+          post = Post.fromJson(postData);
+          _isLiked = post!.isLikedByMe;
+          _likesCount = post!.likesNbr;
+          _commentsCount = post!.commentsNbr;
+          _currentContent = post!.content;
+        });
+
+        // Fetch post owner
+        _fetchPostOwner();
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> _fetchPostOwner() async {
+    if (post == null) return;
+
     try {
-      final owner = await fetchUserProfile(widget.post.userId.toString());
+      final owner = await fetchUserProfile(post!.userId.toString());
       setState(() {
         postOwner = owner;
         isLoading = false;
@@ -77,11 +113,10 @@ class _PostWidgetState extends State<PostWidget> {
               onTap: () async {
                 Navigator.pop(context);
 
-                // Show dialog to enter new content
                 final newContent = await showDialog<String>(
                   context: context,
                   builder: (context) {
-                    String tempContent = widget.post.content;
+                    String tempContent = _currentContent;
                     return AlertDialog(
                       title: const Text('Update Post'),
                       content: TextField(
@@ -105,14 +140,17 @@ class _PostWidgetState extends State<PostWidget> {
 
                 if (newContent != null && newContent.isNotEmpty) {
                   final response = await updatePost(
-                    postId: widget.post.postId,
+                    postId: widget.postId,
                     newContent: newContent,
                   );
 
                   if (response.success) {
                     setState(() {
-                      widget.post.content = newContent;
+                      _currentContent = newContent;
                     });
+                    if (widget.onUpdate != null) {
+                      widget.onUpdate!(widget.postId.toString());
+                    }
                   }
                 }
               },
@@ -144,14 +182,14 @@ class _PostWidgetState extends State<PostWidget> {
                 );
 
                 if (confirmed == true) {
-                  final response = await deletePost(postId: widget.post.postId);
+                  final response = await deletePost(postId: widget.postId);
 
                   if (response.success) {
                     setState(() {
                       _isDeleted = true;
                     });
                     if (widget.onDelete != null) {
-                      widget.onDelete!(widget.post.postId.toString());
+                      widget.onDelete!(widget.postId.toString());
                     }
                   }
                 }
@@ -169,9 +207,17 @@ class _PostWidgetState extends State<PostWidget> {
       return const SizedBox.shrink();
     }
 
-    final post = widget.post;
+    if (isLoading || post == null) {
+      return Container(
+        color: Colors.white,
+        margin: const EdgeInsets.only(bottom: 20),
+        height: 400,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final isOwner =
-        loggedInUserId != null && loggedInUserId == post.userId.toString();
+        loggedInUserId != null && loggedInUserId == post!.userId.toString();
 
     return Container(
       color: Colors.white,
@@ -186,7 +232,7 @@ class _PostWidgetState extends State<PostWidget> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ProfileScreen(
-                    userId: postOwner?.userId ?? post.userId.toString(),
+                    userId: postOwner?.userId ?? post!.userId.toString(),
                     showTopBanner: true,
                   ),
                 ),
@@ -210,14 +256,14 @@ class _PostWidgetState extends State<PostWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          postOwner?.username ?? 'User ${post.userId}',
+                          postOwner?.username ?? 'User ${post!.userId}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
                           ),
                         ),
                         Text(
-                          DateFormat.yMMMd().add_jm().format(post.createdAt),
+                          DateFormat.yMMMd().add_jm().format(post!.createdAt),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
@@ -237,18 +283,18 @@ class _PostWidgetState extends State<PostWidget> {
           ),
 
           // --- Post content ---
-          if (post.content.isNotEmpty)
+          if (_currentContent.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(post.content),
+              child: Text(_currentContent),
             ),
 
           // --- Media ---
           AspectRatio(
             aspectRatio: 1,
-            child: post.mediaUrl.isNotEmpty
+            child: post!.mediaUrl.isNotEmpty
                 ? Image.network(
-                    post.mediaUrl,
+                    post!.mediaUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
                         _buildPlaceholder(),
@@ -265,31 +311,42 @@ class _PostWidgetState extends State<PostWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () async {
-                    final response = await likeOrDislikePost(
-                      postId: widget.post.postId,
-                    );
-                    if (response.success) {
-                      setState(() {
-                        _isLiked = !_isLiked;
-                        _likesCount += _isLiked ? 1 : -1;
-                      });
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Icon(
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        final response = await likeOrDislikePost(
+                          postId: widget.postId,
+                        );
+                        if (response.success) {
+                          setState(() {
+                            _isLiked = !_isLiked;
+                            _likesCount += _isLiked ? 1 : -1;
+                          });
+                        }
+                      },
+                      child: Icon(
                         _isLiked ? Icons.favorite : Icons.favorite_border,
                         color: _isLiked ? Colors.red : Colors.black,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$_likesCount likes',
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) =>
+                              LikesBottomSheet(postId: widget.postId),
+                        );
+                      },
+                      child: Text(
+                        '$_likesCount ${_likesCount == 1 ? 'like' : 'likes'}',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 InkWell(
@@ -298,7 +355,8 @@ class _PostWidgetState extends State<PostWidget> {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (_) => CommentsBottomSheet(postId: post.postId),
+                      builder: (_) =>
+                          CommentsBottomSheet(postId: widget.postId),
                     );
                   },
                   child: Row(
@@ -309,7 +367,7 @@ class _PostWidgetState extends State<PostWidget> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${post.commentsNbr} comments',
+                        '$_commentsCount ${_commentsCount == 1 ? 'comment' : 'comments'}',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],

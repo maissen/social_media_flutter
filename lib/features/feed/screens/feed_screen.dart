@@ -58,7 +58,7 @@ class _FeedScreenState extends State<FeedScreen> {
         itemCount: userFeedPosts.length,
         itemBuilder: (context, index) {
           final post = userFeedPosts[index];
-          return PostWidget(post: post); // Your post widget
+          return PostWidget(postId: post.postId); // Your post widget
         },
       ),
     );
