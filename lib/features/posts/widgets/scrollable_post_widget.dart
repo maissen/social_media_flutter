@@ -1,4 +1,6 @@
 import 'package:demo/features/posts/screens/post_screen.dart';
+import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
+import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:demo/utils/posts_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
+import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -376,8 +378,8 @@ class _PostActions extends StatelessWidget {
                     '$commentsNbr comments',
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.blue, // optional: make it look tappable
-                      decoration: TextDecoration.underline, // optional
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ),
@@ -395,209 +397,10 @@ class _PostActions extends StatelessWidget {
   }
 }
 
-//! comment widgets
-class CommentsBottomSheet extends StatefulWidget {
-  final int postId;
-
-  const CommentsBottomSheet({super.key, required this.postId});
-
-  @override
-  State<CommentsBottomSheet> createState() => _CommentsBottomSheetState();
-}
-
-class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
-  final TextEditingController _commentController = TextEditingController();
-  List<Map<String, dynamic>>? comments;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
-  void _loadComments() async {
-    final response = await getCommentsOfPost(postId: widget.postId);
-
-    if (response.success && response.data != null) {
-      setState(() {
-        comments = response.data;
-      });
-    } else {
-      setState(() {
-        comments = [];
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.85;
-
-    return Container(
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // --- Drag handle ---
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[400],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          const Text(
-            'Comments',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-
-          // --- Comments list ---
-          Expanded(
-            child: comments == null || comments!.isEmpty
-                ? const Center(child: Text('No comments yet'))
-                : ListView.builder(
-                    itemCount: comments!.length,
-                    itemBuilder: (context, index) {
-                      final comment = comments![index];
-                      final username =
-                          comment['username'] ??
-                          comment['user']?['username'] ??
-                          'Unknown';
-                      final profilePic =
-                          (comment['profile_picture'] != null &&
-                              comment['profile_picture'].toString().isNotEmpty)
-                          ? comment['profile_picture']
-                          : comment['user']?['profile_picture'] ?? '';
-                      final text = comment['comment_payload'] ?? '';
-                      final createdAt = comment['created_at'] ?? '';
-                      final isLiked = comment['is_liked_by_me'] ?? false;
-                      final likes = comment['likes_nbr'] ?? 0;
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Profile picture
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundImage: profilePic.isNotEmpty
-                                  ? NetworkImage(profilePic)
-                                  : null,
-                              backgroundColor: Colors.grey[300],
-                            ),
-                            const SizedBox(width: 10),
-
-                            // Comment content
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  RichText(
-                                    text: TextSpan(
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 14,
-                                      ),
-                                      children: [
-                                        TextSpan(
-                                          text: '$username ',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        TextSpan(text: text),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        createdAt.isNotEmpty
-                                            ? timeago.format(
-                                                DateTime.parse(createdAt),
-                                                locale: 'en_short',
-                                              )
-                                            : '',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      if (likes > 0)
-                                        Text(
-                                          '$likes likes',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Like button
-                            IconButton(
-                              onPressed: () async {
-                                final response = await likeOrDislikeComment(
-                                  commentId: comment['comment_id'],
-                                );
-
-                                if (response.success && response.data != null) {
-                                  setState(() {
-                                    final wasLiked =
-                                        comment['is_liked_by_me'] ?? false;
-                                    comment['is_liked_by_me'] = !wasLiked;
-
-                                    final likes = comment['likes_nbr'] ?? 0;
-                                    comment['likes_nbr'] = wasLiked
-                                        ? likes - 1
-                                        : likes + 1;
-                                  });
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(response.message)),
-                                  );
-                                }
-                              },
-                              icon: Icon(
-                                comment['is_liked_by_me'] == true
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: comment['is_liked_by_me'] == true
-                                    ? Colors.red
-                                    : Colors.grey,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class CommentInput extends StatelessWidget {
   final TextEditingController controller;
   final int postId;
-  final VoidCallback? onCommentAdded; // callback to refresh UI after comment
+  final VoidCallback? onCommentAdded;
 
   const CommentInput({
     Key? key,
@@ -633,7 +436,7 @@ class CommentInput extends StatelessWidget {
               onPressed: () async {
                 final content = controller.text.trim();
                 if (content.isNotEmpty) {
-                  FocusScope.of(context).unfocus(); // hide keyboard
+                  FocusScope.of(context).unfocus();
 
                   final response = await createComment(
                     postId: postId,
@@ -647,7 +450,6 @@ class CommentInput extends StatelessWidget {
                       const SnackBar(content: Text('Comment added!')),
                     );
 
-                    // 🔥 Notify parent to refresh the comment count or list
                     if (onCommentAdded != null) {
                       onCommentAdded!();
                     }
@@ -665,8 +467,6 @@ class CommentInput extends StatelessWidget {
     );
   }
 }
-
-//! likes widgets
 
 class LikeButton extends StatefulWidget {
   final int postId;
@@ -688,7 +488,6 @@ class _LikeButtonState extends State<LikeButton> {
     _fetchLikes();
   }
 
-  /// Fetch likes of the post and check if the user has liked it
   Future<void> _fetchLikes() async {
     setState(() => _isLoading = true);
 
@@ -716,7 +515,6 @@ class _LikeButtonState extends State<LikeButton> {
     setState(() => _isLoading = false);
   }
 
-  /// Toggle like/unlike when heart is tapped
   Future<void> _toggleLike() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -735,7 +533,6 @@ class _LikeButtonState extends State<LikeButton> {
     }
   }
 
-  /// Show likes bottom sheet
   void _onLikesCountTap() {
     if (likesCount > 0) {
       showModalBottomSheet(
@@ -751,7 +548,6 @@ class _LikeButtonState extends State<LikeButton> {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Heart icon toggles like
         InkWell(
           onTap: _toggleLike,
           child: _isLoading
@@ -770,7 +566,6 @@ class _LikeButtonState extends State<LikeButton> {
                 ),
         ),
         const SizedBox(width: 4),
-        // Likes count triggers bottom sheet
         RichText(
           text: TextSpan(
             text: '$likesCount likes',
@@ -779,105 +574,6 @@ class _LikeButtonState extends State<LikeButton> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Instagram-style likes bottom sheet
-class LikesBottomSheet extends StatefulWidget {
-  final int postId;
-
-  const LikesBottomSheet({Key? key, required this.postId}) : super(key: key);
-
-  @override
-  State<LikesBottomSheet> createState() => _LikesBottomSheetState();
-}
-
-class _LikesBottomSheetState extends State<LikesBottomSheet> {
-  List<dynamic> likes = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchLikes();
-  }
-
-  Future<void> _fetchLikes() async {
-    final response = await getPostLikes(postId: widget.postId);
-    if (response.success && response.data != null) {
-      setState(() {
-        likes = response.data!;
-        _isLoading = false;
-      });
-    } else {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 400,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          // Drag indicator
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Likes',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : likes.isEmpty
-                ? const Center(child: Text('No likes yet'))
-                : ListView.builder(
-                    itemCount: likes.length,
-                    itemBuilder: (context, index) {
-                      final like = likes[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: NetworkImage(
-                            like['profile_picture'] ?? '',
-                          ),
-                        ),
-                        title: Text(like['username'] ?? ''),
-                        subtitle: Text(like['email'] ?? ''),
-                        trailing: like['is_following'] == true
-                            ? const Text(
-                                'Following',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              )
-                            : null,
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
     );
   }
 }
