@@ -44,7 +44,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final response = await createComment(postId: widget.postId, content: text);
     if (response.success) {
       _commentController.clear();
-      await _loadComments(); // Refresh comments
+      await _loadComments();
     } else {
       ScaffoldMessenger.of(
         context,
@@ -55,11 +55,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   Future<void> _toggleLike(int? commentId) async {
-    if (commentId == null) return; // Prevent null crash
+    if (commentId == null) return;
 
     final response = await likeOrDislikeComment(commentId: commentId);
     if (response.success) {
-      await _loadComments(); // Refresh like states
+      await _loadComments();
     } else {
       ScaffoldMessenger.of(
         context,
@@ -115,11 +115,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           '';
                       final text = comment['comment_payload'] ?? '';
                       final createdAt = comment['created_at'] ?? '';
-                      final commentId =
-                          comment['id'] ?? comment['comment_id']; // Safe ID
-                      final likedByUser =
-                          comment['is_liked_by_me'] ?? false; // API field
-                      final likeCount = comment['likes_nbr'] ?? 0; // API field
+                      final commentId = comment['id'] ?? comment['comment_id'];
+                      final likedByUser = comment['is_liked_by_me'] ?? false;
+                      final likeCount = comment['likes_nbr'] ?? 0;
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -131,7 +129,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                               backgroundImage: profilePic.isNotEmpty
                                   ? NetworkImage(profilePic)
                                   : null,
-                              backgroundColor: Colors.grey[300],
+                              backgroundColor: const Color.fromARGB(
+                                255,
+                                0,
+                                0,
+                                0,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -144,6 +147,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                       style: const TextStyle(
                                         color: Colors.black,
                                         fontSize: 14,
+                                        height: 1.2, // tighter line spacing
                                       ),
                                       children: [
                                         TextSpan(
@@ -157,8 +161,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-
-                                  // Timestamp + like count inline
+                                  // Timestamp + like count
                                   Text(
                                     createdAt.isNotEmpty
                                         ? likeCount > 0
@@ -178,7 +181,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             ),
                             const SizedBox(width: 8),
 
-                            // ❤️ Like button
+                            // Like button ❤️
                             GestureDetector(
                               onTap: commentId != null
                                   ? () => _toggleLike(commentId)
@@ -198,27 +201,38 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   ),
           ),
 
-          // Comment input + Share button
+          // Input with top border
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+            child: Container(
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Color(0xFFE0E0E0), // light gray divider
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: InputDecoration(
-                        hintText: 'Add a comment...',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 0),
+                      child: TextField(
+                        controller: _commentController,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a comment...',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 0,
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
                       ),
                     ),
                   ),
