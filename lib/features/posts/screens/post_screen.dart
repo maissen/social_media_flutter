@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/posts_helpers.dart';
 
+// Global variable accessible anywhere in this file
+late GetPostResponse postResponse;
+
 class PostScreen extends StatefulWidget {
   final String postId;
   const PostScreen({Key? key, required this.postId}) : super(key: key);
@@ -38,7 +41,8 @@ class _PostScreenState extends State<PostScreen> {
     });
 
     try {
-      final postResponse = await getPostById(int.parse(widget.postId));
+      postResponse = await getPostById(int.parse(widget.postId));
+
       if (postResponse.success && postResponse.post != null) {
         setState(() {
           _postData = postResponse.post!;
@@ -347,11 +351,7 @@ class _PostActions extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            LikeButton(
-              postId: postId,
-              initialLikes: likesNbr,
-              initiallyLiked: isLikedByMe,
-            ),
+            LikeButton(postId: postId),
             Row(
               children: [
                 const Icon(Icons.comment_outlined),
@@ -404,7 +404,6 @@ class CommentInput extends StatelessWidget {
               icon: const Icon(Icons.send, color: Colors.blue),
               onPressed: () {
                 if (controller.text.isNotEmpty) {
-                  print('Comment typed: ${controller.text}');
                   controller.clear();
                   // TODO: call API to add comment
                 }
@@ -419,46 +418,42 @@ class CommentInput extends StatelessWidget {
 
 class LikeButton extends StatefulWidget {
   final int postId;
-  final int initialLikes;
-  final bool initiallyLiked;
 
-  const LikeButton({
-    Key? key,
-    required this.postId,
-    required this.initialLikes,
-    this.initiallyLiked = false,
-  }) : super(key: key);
+  const LikeButton({Key? key, required this.postId}) : super(key: key);
 
   @override
   State<LikeButton> createState() => _LikeButtonState();
 }
 
 class _LikeButtonState extends State<LikeButton> {
-  late int likesCount;
-  late bool isLiked;
+  int likesCount = 0;
+  bool isLiked = false;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    likesCount = widget.initialLikes;
-    isLiked = widget.initiallyLiked;
+    _fetchLikes(); // fetch likes on widget load
   }
 
-  Future<void> _toggleLike() async {
-    if (_isLoading) return;
+  /// Fetch likes of the post and check if the user has liked it
+  Future<void> _fetchLikes() async {
     setState(() => _isLoading = true);
 
-    final response = await likeOrDislikePost(postId: widget.postId);
+    final response = await getPostLikes(postId: widget.postId);
 
-    if (response.success) {
+    if (response.success && response.data != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserEmail = prefs.getString('email');
+
+      final likesList = response.data!;
+      final userHasLiked = likesList.any(
+        (like) => like['email'] != null && like['email'] == currentUserEmail,
+      );
+
       setState(() {
-        if (isLiked) {
-          likesCount -= 1;
-        } else {
-          likesCount += 1;
-        }
-        isLiked = !isLiked;
+        likesCount = likesList.length;
+        isLiked = userHasLiked;
       });
     } else {
       ScaffoldMessenger.of(
@@ -467,6 +462,27 @@ class _LikeButtonState extends State<LikeButton> {
     }
 
     setState(() => _isLoading = false);
+  }
+
+  /// Toggle like/unlike on heart click
+  Future<void> _toggleLike() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    final response = await likeOrDislikePost(postId: widget.postId);
+
+    if (response.success) {
+      // refresh likes from server to keep count accurate
+      await _fetchLikes();
+
+      postResponse.post?['is_liked_by_me'] =
+          !postResponse.post?['is_liked_by_me'];
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(response.message)));
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -482,8 +498,12 @@ class _LikeButtonState extends State<LikeButton> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Icon(
-                  isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: isLiked ? Colors.red : Colors.grey,
+                  postResponse.post?['is_liked_by_me']
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: postResponse.post?['is_liked_by_me']
+                      ? Colors.red
+                      : Colors.grey,
                 ),
           const SizedBox(width: 4),
           Text('$likesCount', style: const TextStyle(fontSize: 14)),
