@@ -47,16 +47,41 @@ class _PostScreenState extends State<PostScreen> {
     });
 
     try {
-      final response = await getPostById(int.parse(widget.postId));
+      // Fetch post data
+      final postResponse = await getPostById(int.parse(widget.postId));
 
-      if (response.success && response.post != null) {
+      if (postResponse.success && postResponse.post != null) {
+        Map<String, dynamic> postData = postResponse.post!;
+
+        // Fetch likes count
+        final likesResponse = await getPostLikes(
+          postId: int.parse(widget.postId),
+        );
+        int likesCount = 0;
+        if (likesResponse.success && likesResponse.data != null) {
+          likesCount = likesResponse.data!.length;
+        }
+
+        // Fetch comments count
+        final commentsResponse = await getCommentsOfPost(
+          postId: int.parse(widget.postId),
+        );
+        int commentsCount = 0;
+        if (commentsResponse.success && commentsResponse.data != null) {
+          commentsCount = commentsResponse.data!.length;
+        }
+
+        // Update the post data map
+        postData['likes_nbr'] = likesCount;
+        postData['comments_nbr'] = commentsCount;
+
         setState(() {
-          _postData = response.post;
+          _postData = postData;
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = response.message;
+          _errorMessage = postResponse.message;
           _isLoading = false;
         });
       }
@@ -123,10 +148,10 @@ class _PostScreenState extends State<PostScreen> {
           content: TextField(
             controller: _updateController,
             maxLines: null,
-            maxLength: 100, // limit to 100 characters
+            maxLength: 100,
             decoration: const InputDecoration(
               hintText: 'Edit your post...',
-              counterText: '', // optional: hide default counter
+              counterText: '',
             ),
           ),
           actions: [
@@ -139,12 +164,11 @@ class _PostScreenState extends State<PostScreen> {
                 final newContent = _updateController.text.trim();
                 if (newContent.isEmpty) return;
 
-                Navigator.pop(context); // close dialog
+                Navigator.pop(context);
                 setState(() {
                   _isLoading = true;
                 });
 
-                // Call the API to update the post
                 final response = await updatePost(
                   postId: int.parse(widget.postId),
                   newContent: newContent,
@@ -189,12 +213,11 @@ class _PostScreenState extends State<PostScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context); // Close the dialog
+                Navigator.pop(context);
                 setState(() {
                   _isLoading = true;
                 });
 
-                // Call the API to delete the post
                 final response = await deletePost(
                   postId: int.parse(widget.postId),
                 );
