@@ -437,6 +437,7 @@ class _LikeButtonState extends State<LikeButton> {
     _fetchLikes();
   }
 
+  /// Fetch likes of the post and check if the user has liked it
   Future<void> _fetchLikes() async {
     setState(() => _isLoading = true);
 
@@ -483,22 +484,14 @@ class _LikeButtonState extends State<LikeButton> {
     }
   }
 
-  /// Function to run when likes count text is clicked
+  /// Show likes bottom sheet
   void _onLikesCountTap() {
-    // Example: Navigate to list of users who liked
-
     if (likesCount > 0) {
       showModalBottomSheet(
         context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        builder: (BuildContext context) {
-          return SizedBox(
-            height: 300, // Adjust the height as needed
-            child: Center(child: Text('Likes list will appear here')),
-          );
-        },
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => LikesBottomSheet(postId: widget.postId),
       );
     }
   }
@@ -526,7 +519,7 @@ class _LikeButtonState extends State<LikeButton> {
                 ),
         ),
         const SizedBox(width: 4),
-        // Likes count triggers a different function
+        // Likes count triggers bottom sheet
         RichText(
           text: TextSpan(
             text: '$likesCount likes',
@@ -535,6 +528,105 @@ class _LikeButtonState extends State<LikeButton> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Instagram-style likes bottom sheet
+class LikesBottomSheet extends StatefulWidget {
+  final int postId;
+
+  const LikesBottomSheet({Key? key, required this.postId}) : super(key: key);
+
+  @override
+  State<LikesBottomSheet> createState() => _LikesBottomSheetState();
+}
+
+class _LikesBottomSheetState extends State<LikesBottomSheet> {
+  List<dynamic> likes = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLikes();
+  }
+
+  Future<void> _fetchLikes() async {
+    final response = await getPostLikes(postId: widget.postId);
+    if (response.success && response.data != null) {
+      setState(() {
+        likes = response.data!;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(response.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 400,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          // Drag indicator
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Likes',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : likes.isEmpty
+                ? const Center(child: Text('No likes yet'))
+                : ListView.builder(
+                    itemCount: likes.length,
+                    itemBuilder: (context, index) {
+                      final like = likes[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: NetworkImage(
+                            like['profile_picture'] ?? '',
+                          ),
+                        ),
+                        title: Text(like['username'] ?? ''),
+                        subtitle: Text(like['email'] ?? ''),
+                        trailing: like['is_following'] == true
+                            ? const Text(
+                                'Following',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
