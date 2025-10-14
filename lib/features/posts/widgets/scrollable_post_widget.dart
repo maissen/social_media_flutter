@@ -1,14 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:demo/utils/feed_helpers.dart'; // import your Post model
 import 'package:intl/intl.dart';
+import 'package:demo/utils/feed_helpers.dart'; // Post model
+import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile function
+import 'package:demo/utils/user_profile.dart'; // fetchUserProfile function
 
-class PostWidget extends StatelessWidget {
+class PostWidget extends StatefulWidget {
   final Post post;
 
   const PostWidget({Key? key, required this.post}) : super(key: key);
 
   @override
+  _PostWidgetState createState() => _PostWidgetState();
+}
+
+class _PostWidgetState extends State<PostWidget> {
+  UserProfile? postOwner; // will hold the post owner info
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPostOwner();
+  }
+
+  Future<void> _fetchPostOwner() async {
+    try {
+      final owner = await fetchUserProfile(widget.post.userId.toString());
+      setState(() {
+        postOwner = owner;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final post = widget.post;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       elevation: 2,
@@ -16,7 +48,7 @@ class PostWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post header (user info, timestamp)
+          // Post header
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -24,8 +56,8 @@ class PostWidget extends StatelessWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundImage: NetworkImage(
-                    'https://i.pravatar.cc/150?img=${post.userId}',
-                  ), // placeholder user avatar
+                    postOwner?.profilePicture ?? '',
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -33,7 +65,7 @@ class PostWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'User ${post.userId}', // you can replace with actual username
+                        postOwner?.username ?? 'User ${post.userId}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
@@ -49,13 +81,13 @@ class PostWidget extends StatelessWidget {
               ],
             ),
           ),
-          // Post content text
+          // Post content
           if (post.content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Text(post.content),
             ),
-          // Post media image
+          // Media
           if (post.mediaUrl.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -65,7 +97,7 @@ class PostWidget extends StatelessWidget {
                 width: double.infinity,
               ),
             ),
-          // Likes and comments
+          // Likes & comments
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
