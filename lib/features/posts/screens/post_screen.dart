@@ -95,7 +95,10 @@ class _PostScreenState extends State<PostScreen> {
               ),
             ),
           ),
-          CommentInput(controller: _commentController),
+          CommentInput(
+            controller: _commentController,
+            postId: postResponse.post?['post_id'],
+          ),
         ],
       ),
     );
@@ -375,9 +378,19 @@ class _PostActions extends StatelessWidget {
   }
 }
 
+//! comment widgets
+
 class CommentInput extends StatelessWidget {
   final TextEditingController controller;
-  const CommentInput({Key? key, required this.controller}) : super(key: key);
+  final int postId;
+  final VoidCallback? onCommentAdded; // Optional callback to refresh comments
+
+  const CommentInput({
+    Key? key,
+    required this.controller,
+    required this.postId,
+    this.onCommentAdded,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -403,10 +416,28 @@ class CommentInput extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.send, color: Colors.blue),
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  controller.clear();
-                  // TODO: call API to add comment
+              onPressed: () async {
+                final content = controller.text.trim();
+                if (content.isNotEmpty) {
+                  // Disable the button while submitting
+                  FocusScope.of(context).unfocus(); // hide keyboard
+
+                  final response = await createComment(
+                    postId: postId,
+                    content: content,
+                  );
+
+                  if (response.success) {
+                    controller.clear(); // clear input
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Comment added!')),
+                    );
+                    if (onCommentAdded != null) onCommentAdded!();
+                  } else {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(response.message)));
+                  }
                 }
               },
             ),
@@ -416,6 +447,8 @@ class CommentInput extends StatelessWidget {
     );
   }
 }
+
+//! likes widgets
 
 class LikeButton extends StatefulWidget {
   final int postId;
