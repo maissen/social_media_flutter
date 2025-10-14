@@ -97,111 +97,113 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           ),
           const SizedBox(height: 10),
 
-          // Comments list
+          // Comments list (no scrollbar)
           Expanded(
             child: comments == null || comments!.isEmpty
                 ? const Center(child: Text('No comments yet'))
-                : ListView.builder(
-                    itemCount: comments!.length,
-                    itemBuilder: (context, index) {
-                      final comment = comments![index];
-                      final username =
-                          comment['username'] ??
-                          comment['user']?['username'] ??
-                          'Unknown';
-                      final profilePic =
-                          comment['profile_picture'] ??
-                          comment['user']?['profile_picture'] ??
-                          '';
-                      final text = comment['comment_payload'] ?? '';
-                      final createdAt = comment['created_at'] ?? '';
-                      final commentId = comment['id'] ?? comment['comment_id'];
-                      final likedByUser = comment['is_liked_by_me'] ?? false;
-                      final likeCount = comment['likes_nbr'] ?? 0;
+                : ScrollConfiguration(
+                    behavior: const _NoScrollGlowBehavior(),
+                    child: ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: comments!.length,
+                      itemBuilder: (context, index) {
+                        final comment = comments![index];
+                        final username =
+                            comment['username'] ??
+                            comment['user']?['username'] ??
+                            'Unknown';
+                        final profilePic =
+                            comment['profile_picture'] ??
+                            comment['user']?['profile_picture'] ??
+                            '';
+                        final text = comment['comment_payload'] ?? '';
+                        final createdAt = comment['created_at'] ?? '';
+                        final commentId =
+                            comment['id'] ?? comment['comment_id'];
+                        final likedByUser = comment['is_liked_by_me'] ?? false;
+                        final likeCount = comment['likes_nbr'] ?? 0;
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundImage: profilePic.isNotEmpty
-                                  ? NetworkImage(profilePic)
-                                  : null,
-                              backgroundColor: const Color.fromARGB(
-                                255,
-                                0,
-                                0,
-                                0,
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundImage: profilePic.isNotEmpty
+                                    ? NetworkImage(profilePic)
+                                    : null,
+                                backgroundColor: Colors.grey[300],
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Username + comment
-                                  RichText(
-                                    text: TextSpan(
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 14,
-                                        height: 1.2, // tighter line spacing
-                                      ),
-                                      children: [
-                                        TextSpan(
-                                          text: '$username ',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Username + comment
+                                    RichText(
+                                      text: TextSpan(
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 14,
+                                          height: 1.2, // tighter spacing
                                         ),
-                                        TextSpan(text: text),
-                                      ],
+                                        children: [
+                                          TextSpan(
+                                            text: '$username ',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          TextSpan(text: text),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  // Timestamp + like count
-                                  Text(
-                                    createdAt.isNotEmpty
-                                        ? likeCount > 0
-                                              ? '${timeago.format(DateTime.parse(createdAt), locale: 'en_short')} • $likeCount likes'
-                                              : timeago.format(
-                                                  DateTime.parse(createdAt),
-                                                  locale: 'en_short',
-                                                )
-                                        : '',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
+                                    const SizedBox(height: 4),
+                                    // Timestamp + like count inline
+                                    Text(
+                                      createdAt.isNotEmpty
+                                          ? likeCount > 0
+                                                ? '${timeago.format(DateTime.parse(createdAt), locale: 'en_short')} • $likeCount likes'
+                                                : timeago.format(
+                                                    DateTime.parse(createdAt),
+                                                    locale: 'en_short',
+                                                  )
+                                          : '',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
+                              const SizedBox(width: 8),
 
-                            // Like button ❤️
-                            GestureDetector(
-                              onTap: commentId != null
-                                  ? () => _toggleLike(commentId)
-                                  : null,
-                              child: Icon(
-                                likedByUser
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: likedByUser ? Colors.red : Colors.black,
-                                size: 20,
+                              // Like button ❤️
+                              GestureDetector(
+                                onTap: commentId != null
+                                    ? () => _toggleLike(commentId)
+                                    : null,
+                                child: Icon(
+                                  likedByUser
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: likedByUser
+                                      ? Colors.red
+                                      : Colors.black,
+                                  size: 20,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
           ),
 
-          // Input with top border
+          // Input field with top border
           SafeArea(
             child: Container(
               decoration: const BoxDecoration(
@@ -266,5 +268,24 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+}
+
+// Custom scroll behavior to remove scrollbar + glow
+class _NoScrollGlowBehavior extends ScrollBehavior {
+  const _NoScrollGlowBehavior();
+
+  @override
+  Widget buildViewportChrome(
+    BuildContext context,
+    Widget child,
+    AxisDirection axisDirection,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
   }
 }
