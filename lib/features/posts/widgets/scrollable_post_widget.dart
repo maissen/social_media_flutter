@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:demo/utils/feed_helpers.dart'; // Post model
 import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile function
-import 'package:demo/utils/user_profile.dart'; // fetchUserProfile function
+import 'package:demo/utils/user_profile.dart'; // UserProfile model
 
 class PostWidget extends StatefulWidget {
   final Post post;
@@ -14,7 +14,7 @@ class PostWidget extends StatefulWidget {
 }
 
 class _PostWidgetState extends State<PostWidget> {
-  UserProfile? postOwner; // will hold the post owner info
+  UserProfile? postOwner;
   bool isLoading = true;
 
   @override
@@ -48,7 +48,7 @@ class _PostWidgetState extends State<PostWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post header
+          // --- Header (profile) ---
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -56,7 +56,9 @@ class _PostWidgetState extends State<PostWidget> {
                 CircleAvatar(
                   radius: 18,
                   backgroundImage: NetworkImage(
-                    postOwner?.profilePicture ?? '',
+                    postOwner?.profilePicture?.isNotEmpty == true
+                        ? postOwner!.profilePicture
+                        : 'https://i.pravatar.cc/150?img=${post.userId}',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -81,23 +83,33 @@ class _PostWidgetState extends State<PostWidget> {
               ],
             ),
           ),
-          // Post content
+
+          // --- Post content text ---
           if (post.content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Text(post.content),
             ),
-          // Media
-          if (post.mediaUrl.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Image.network(
-                post.mediaUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-              ),
-            ),
-          // Likes & comments
+
+          // --- Media Section (Image or Placeholder) ---
+          AspectRatio(
+            aspectRatio: 1, // Instagram-style square
+            child: post.mediaUrl.isNotEmpty
+                ? Image.network(
+                    post.mediaUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildPlaceholder();
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return _buildPlaceholder();
+                    },
+                  )
+                : _buildPlaceholder(),
+          ),
+
+          // --- Likes & Comments ---
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -109,13 +121,23 @@ class _PostWidgetState extends State<PostWidget> {
                 const SizedBox(width: 4),
                 Text('${post.likesNbr} likes'),
                 const SizedBox(width: 16),
-                Icon(Icons.comment, color: Colors.grey),
+                const Icon(Icons.comment, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text('${post.commentsNbr} comments'),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Placeholder for when there's no image or an error occurs
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey[300],
+      child: const Center(
+        child: Icon(Icons.image_outlined, size: 60, color: Colors.grey),
       ),
     );
   }
