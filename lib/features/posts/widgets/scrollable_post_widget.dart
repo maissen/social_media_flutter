@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:demo/utils/feed_helpers.dart'; // Post model
 import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile function
 import 'package:demo/utils/user_profile.dart'; // UserProfile model
+import 'package:demo/features/profile/screens/profile_screen.dart'; // ProfileScreen
 
 class PostWidget extends StatefulWidget {
   final Post post;
@@ -49,38 +50,53 @@ class _PostWidgetState extends State<PostWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- Header (profile) ---
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage: NetworkImage(
-                    postOwner?.profilePicture?.isNotEmpty == true
-                        ? postOwner!.profilePicture
-                        : 'https://i.pravatar.cc/150?img=${post.userId}',
+          InkWell(
+            onTap: () {
+              // Navigate to profile screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(
+                    userId: postOwner?.userId ?? post.userId.toString(),
+                    showTopBanner: true,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        postOwner?.username ?? 'User ${post.userId}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        DateFormat.yMMMd().add_jm().format(post.createdAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundImage: NetworkImage(
+                      postOwner?.profilePicture?.isNotEmpty == true
+                          ? postOwner!.profilePicture
+                          : 'https://i.pravatar.cc/150?img=${post.userId}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          postOwner?.username ?? 'User ${post.userId}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
+                        Text(
+                          DateFormat.yMMMd().add_jm().format(post.createdAt),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
