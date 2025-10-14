@@ -38,14 +38,21 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.white, // set background to white
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (errorMessage != null) {
-      return Scaffold(body: Center(child: Text(errorMessage!)));
+      return Scaffold(
+        backgroundColor: Colors.white, // set background to white
+        body: Center(child: Text(errorMessage!)),
+      );
     }
 
     return Scaffold(
+      backgroundColor: Colors.white, // set background to white
       appBar: AppBar(title: const Text('Feed')),
       body: ListView.builder(
         itemCount: userFeedPosts.length,
