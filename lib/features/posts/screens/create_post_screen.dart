@@ -1,8 +1,12 @@
 import 'dart:io' show File;
-import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'dart:convert';
+import 'package:demo/config/constants.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:demo/utils/posts_helpers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -14,7 +18,7 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  XFile? _selectedImage; // Use XFile for cross-platform support
+  XFile? _selectedImage;
   bool _isLoading = false;
 
   @override
@@ -31,12 +35,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-
-      if (image != null) {
-        setState(() {
-          _selectedImage = image;
-        });
-      }
+      if (image != null) setState(() => _selectedImage = image);
     } catch (e) {
       _showErrorSnackBar('Failed to pick image: $e');
     }
@@ -50,12 +49,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-
-      if (image != null) {
-        setState(() {
-          _selectedImage = image;
-        });
-      }
+      if (image != null) setState(() => _selectedImage = image);
     } catch (e) {
       _showErrorSnackBar('Failed to take photo: $e');
     }
@@ -95,9 +89,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   title: const Text('Remove Photo'),
                   onTap: () {
                     Navigator.pop(context);
-                    setState(() {
-                      _selectedImage = null;
-                    });
+                    setState(() => _selectedImage = null);
                   },
                 ),
             ],
@@ -117,97 +109,72 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<void> _handleCreatePost() async {
     final content = _contentController.text.trim();
 
-    // Validate input - image is required
     if (_selectedImage == null) {
       _showErrorSnackBar('Please select an image');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Prepare File for mobile, or null for web
-      File? fileToUpload;
-      if (!kIsWeb && _selectedImage != null) {
-        fileToUpload = File(_selectedImage!.path);
-      }
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+      final url = Uri.parse('${AppConstants.baseApiUrl}/posts/create');
 
-      final response = await createPost(
-        content: content.isNotEmpty ? content : null,
-        mediaFile: fileToUpload,
-      );
+      final request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (content.isNotEmpty) request.fields['content'] = content;
 
-        if (response.success) {
-          _showSuccessSnackBar(response.message);
-          _clearForm(); // Clear form instead of closing screen
+      if (_selectedImage != null) {
+        if (kIsWeb) {
+          final bytes = await _selectedImage!.readAsBytes();
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'media_file',
+              bytes,
+              filename: _selectedImage!.name,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
         } else {
-          _showErrorSnackBar(response.message);
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'media_file',
+              _selectedImage!.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
         }
       }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final body = jsonDecode(response.body);
+
+      setState(() => _isLoading = false);
+
+      if (response.statusCode == 201 && body['success'] == true) {
+        _showSuccessSnackBar(body['message'] ?? 'Post created successfully');
+        _clearForm();
+      } else {
+        _showErrorSnackBar(body['message'] ?? 'Failed to create post');
+      }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        _showErrorSnackBar('An error occurred: $e');
-      }
-    }
-  }
-
-  Future<void> _handleBackNavigation() async {
-    if (_contentController.text.isNotEmpty || _selectedImage != null) {
-      final shouldDiscard = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Discard Post?'),
-          content: const Text(
-            'Are you sure you want to discard your post draft?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Discard', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        ),
-      );
-
-      if (shouldDiscard == true && mounted) {
-        Navigator.pop(context);
-      }
-    } else {
-      Navigator.pop(context);
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('An error occurred: $e');
     }
   }
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
   }
 
@@ -218,14 +185,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: const Text('Create Post'),
         actions: [
           if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
           else
@@ -240,116 +205,62 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ),
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Preview
-            if (_selectedImage != null)
-              Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 400,
-                    decoration: BoxDecoration(color: Colors.grey[200]),
-                    child: kIsWeb
-                        ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
-                        : Image.file(
-                            File(_selectedImage!.path),
-                            fit: BoxFit.cover,
-                          ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedImage = null;
-                        });
-                      },
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black54,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              GestureDetector(
-                onTap: _showImageSourceDialog,
-                child: Container(
-                  width: double.infinity,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.grey[400]!),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 80,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Tap to add photo',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
+            GestureDetector(
+              onTap: _showImageSourceDialog,
+              child: Container(
+                width: double.infinity,
+                height: 300,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  border: Border.all(color: Colors.grey[400]!),
                 ),
-              ),
-
-            const SizedBox(height: 16),
-
-            // Caption Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Caption',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _contentController,
-                    maxLines: 5,
-                    maxLength: 2200,
-                    decoration: InputDecoration(
-                      hintText: 'Write a caption...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                child: _selectedImage != null
+                    ? (kIsWeb
+                          ? Image.network(
+                              _selectedImage!.path,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.file(
+                              File(_selectedImage!.path),
+                              fit: BoxFit.cover,
+                            ))
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 80,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tap to add photo',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                  ),
-                ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Change Photo Button
-            if (_selectedImage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: OutlinedButton.icon(
-                  onPressed: _showImageSourceDialog,
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Change Photo'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _contentController,
+                maxLines: 5,
+                maxLength: 2200,
+                decoration: InputDecoration(
+                  hintText: 'Write a caption...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
               ),
-
-            const SizedBox(height: 32),
+            ),
           ],
         ),
       ),
