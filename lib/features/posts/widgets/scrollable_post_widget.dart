@@ -6,6 +6,7 @@ import 'package:demo/utils/feed_helpers.dart'; // Post model
 import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile
 import 'package:demo/utils/user_profile.dart';
 import 'package:demo/features/profile/screens/profile_screen.dart';
+import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
 
 class PostWidget extends StatefulWidget {
   final Post post;
@@ -259,6 +260,7 @@ class _PostWidgetState extends State<PostWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
+                // Like button
                 Icon(
                   post.isLikedByMe ? Icons.favorite : Icons.favorite_border,
                   color: post.isLikedByMe ? Colors.red : Colors.black,
@@ -269,11 +271,30 @@ class _PostWidgetState extends State<PostWidget> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.mode_comment_outlined, color: Colors.black),
-                const SizedBox(width: 6),
-                Text(
-                  '${post.commentsNbr}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+
+                // Comment button with tap
+                InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => CommentsBottomSheet(postId: post.postId),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.mode_comment_outlined,
+                        color: Colors.black,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${post.commentsNbr}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
