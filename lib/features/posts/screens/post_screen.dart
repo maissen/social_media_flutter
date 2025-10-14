@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/posts_helpers.dart';
@@ -433,10 +434,9 @@ class _LikeButtonState extends State<LikeButton> {
   @override
   void initState() {
     super.initState();
-    _fetchLikes(); // fetch likes on widget load
+    _fetchLikes();
   }
 
-  /// Fetch likes of the post and check if the user has liked it
   Future<void> _fetchLikes() async {
     setState(() => _isLoading = true);
 
@@ -464,7 +464,7 @@ class _LikeButtonState extends State<LikeButton> {
     setState(() => _isLoading = false);
   }
 
-  /// Toggle like/unlike on heart click
+  /// Toggle like/unlike when heart is tapped
   Future<void> _toggleLike() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -472,9 +472,7 @@ class _LikeButtonState extends State<LikeButton> {
     final response = await likeOrDislikePost(postId: widget.postId);
 
     if (response.success) {
-      // refresh likes from server to keep count accurate
       await _fetchLikes();
-
       postResponse.post?['is_liked_by_me'] =
           !postResponse.post?['is_liked_by_me'];
     } else {
@@ -485,13 +483,20 @@ class _LikeButtonState extends State<LikeButton> {
     }
   }
 
+  /// Function to run when likes count text is clicked
+  void _onLikesCountTap() {
+    // Example: Navigate to list of users who liked
+    print('Likes count clicked! Show list of users who liked.');
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _toggleLike,
-      child: Row(
-        children: [
-          _isLoading
+    return Row(
+      children: [
+        // Heart icon toggles like
+        InkWell(
+          onTap: _toggleLike,
+          child: _isLoading
               ? const SizedBox(
                   width: 24,
                   height: 24,
@@ -505,10 +510,17 @@ class _LikeButtonState extends State<LikeButton> {
                       ? Colors.red
                       : Colors.grey,
                 ),
-          const SizedBox(width: 4),
-          Text('$likesCount', style: const TextStyle(fontSize: 14)),
-        ],
-      ),
+        ),
+        const SizedBox(width: 4),
+        // Likes count triggers a different function
+        RichText(
+          text: TextSpan(
+            text: '$likesCount likes',
+            style: const TextStyle(fontSize: 14, color: Colors.blue),
+            recognizer: TapGestureRecognizer()..onTap = _onLikesCountTap,
+          ),
+        ),
+      ],
     );
   }
 }
