@@ -47,34 +47,12 @@ class _PostScreenState extends State<PostScreen> {
     });
 
     try {
-      // Fetch post data
       final postResponse = await getPostById(int.parse(widget.postId));
 
       if (postResponse.success && postResponse.post != null) {
         Map<String, dynamic> postData = postResponse.post!;
 
-        // Fetch likes count
-        final likesResponse = await getPostLikes(
-          postId: int.parse(widget.postId),
-        );
-        int likesCount = 0;
-        if (likesResponse.success && likesResponse.data != null) {
-          likesCount = likesResponse.data!.length;
-        }
-
-        // Fetch comments count
-        final commentsResponse = await getCommentsOfPost(
-          postId: int.parse(widget.postId),
-        );
-        int commentsCount = 0;
-        if (commentsResponse.success && commentsResponse.data != null) {
-          commentsCount = commentsResponse.data!.length;
-        }
-
-        // Update the post data map
-        postData['likes_nbr'] = likesCount;
-        postData['comments_nbr'] = commentsCount;
-
+        // Use likes_nbr and is_liked_by_me directly from postData
         setState(() {
           _postData = postData;
           _isLoading = false;
@@ -330,15 +308,11 @@ class _PostScreenState extends State<PostScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.favorite_border),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${_postData!['likes_nbr']} likes',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
+                            LikeButton(
+                              postId: int.parse(widget.postId),
+                              initialLikes: _postData!['likes_nbr'] ?? 0,
+                              initiallyLiked:
+                                  _postData!['is_liked_by_me'] ?? false,
                             ),
                             Row(
                               children: [
@@ -405,6 +379,82 @@ class _PostScreenState extends State<PostScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class LikeButton extends StatefulWidget {
+  final int postId;
+  final int initialLikes;
+  final bool initiallyLiked;
+
+  const LikeButton({
+    Key? key,
+    required this.postId,
+    required this.initialLikes,
+    this.initiallyLiked = false,
+  }) : super(key: key);
+
+  @override
+  State<LikeButton> createState() => _LikeButtonState();
+}
+
+class _LikeButtonState extends State<LikeButton> {
+  late int likesCount;
+  late bool isLiked;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    likesCount = widget.initialLikes;
+    isLiked = widget.initiallyLiked;
+  }
+
+  Future<void> _toggleLike() async {
+    if (_isLoading) return; // prevent multiple taps
+    setState(() => _isLoading = true);
+
+    final response = await likeOrDislikePost(postId: widget.postId);
+
+    if (response.success) {
+      setState(() {
+        if (isLiked) {
+          likesCount -= 1;
+        } else {
+          likesCount += 1;
+        }
+        isLiked = !isLiked;
+      });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(response.message)));
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _toggleLike,
+      child: Row(
+        children: [
+          _isLoading
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? Colors.red : Colors.grey,
+                ),
+          const SizedBox(width: 4),
+          Text('$likesCount', style: const TextStyle(fontSize: 14)),
+        ],
+      ),
     );
   }
 }
