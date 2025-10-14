@@ -200,6 +200,7 @@ Future<UpdatePostResponse> updatePost({
 }
 
 /// Delete a post
+/// Delete a post
 Future<DeletePostResponse> deletePost({required int postId}) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('access_token');
@@ -211,7 +212,10 @@ Future<DeletePostResponse> deletePost({required int postId}) async {
     );
   }
 
-  final url = Uri.parse('${AppConstants.baseApiUrl}/posts/delete/$postId');
+  // Corrected URL to use query parameter
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/delete?post_id=$postId',
+  );
 
   try {
     final response = await http.delete(

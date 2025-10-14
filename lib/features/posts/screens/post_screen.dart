@@ -123,7 +123,11 @@ class _PostScreenState extends State<PostScreen> {
           content: TextField(
             controller: _updateController,
             maxLines: null,
-            decoration: const InputDecoration(hintText: 'Edit your post...'),
+            maxLength: 100, // limit to 100 characters
+            decoration: const InputDecoration(
+              hintText: 'Edit your post...',
+              counterText: '', // optional: hide default counter
+            ),
           ),
           actions: [
             TextButton(
@@ -131,12 +135,37 @@ class _PostScreenState extends State<PostScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                final newContent = _updateController.text.trim();
+                if (newContent.isEmpty) return;
+
+                Navigator.pop(context); // close dialog
                 setState(() {
-                  _postData!['content'] = _updateController.text;
+                  _isLoading = true;
                 });
-                Navigator.pop(context);
-                // TODO: call API to update post content
+
+                // Call the API to update the post
+                final response = await updatePost(
+                  postId: int.parse(widget.postId),
+                  newContent: newContent,
+                );
+
+                setState(() {
+                  _isLoading = false;
+                  if (response.success && response.data != null) {
+                    _postData!['content'] = response.data!['new_content'];
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Post updated successfully!'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(response.message)));
+                  }
+                });
               },
               child: const Text('Update'),
             ),
@@ -159,10 +188,31 @@ class _PostScreenState extends State<PostScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // TODO: call API to delete post
-                print('Delete post clicked');
+              onPressed: () async {
+                Navigator.pop(context); // Close the dialog
+                setState(() {
+                  _isLoading = true;
+                });
+
+                // Call the API to delete the post
+                final response = await deletePost(
+                  postId: int.parse(widget.postId),
+                );
+
+                setState(() {
+                  _isLoading = false;
+                });
+
+                if (response.success) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(response.message)));
+                  Navigator.pop(context); // Close PostScreen
+                } else {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(response.message)));
+                }
               },
               child: const Text('Delete'),
             ),
@@ -190,7 +240,6 @@ class _PostScreenState extends State<PostScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // User info + menu button
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -221,7 +270,6 @@ class _PostScreenState extends State<PostScreen> {
                                 ),
                               ],
                             ),
-                            // Menu button for owner
                             if (_loggedInUserId != null &&
                                 _postData!['user']['user_id'] ==
                                     _loggedInUserId)
@@ -233,12 +281,12 @@ class _PostScreenState extends State<PostScreen> {
                                     _showDeleteDialog();
                                   }
                                 },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
                                     value: 'update',
                                     child: Text('Update Post'),
                                   ),
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'delete',
                                     child: Text('Delete Post'),
                                   ),
@@ -247,21 +295,15 @@ class _PostScreenState extends State<PostScreen> {
                               ),
                           ],
                         ),
-
                         const SizedBox(height: 16),
-
                         _buildMedia(),
-
                         const SizedBox(height: 16),
-
                         if (_postData!['content'] != null)
                           Text(
                             _postData!['content'],
                             style: const TextStyle(fontSize: 16),
                           ),
-
                         const SizedBox(height: 16),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -287,7 +329,6 @@ class _PostScreenState extends State<PostScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 12),
                         Text(
                           'Posted on: ${_postData!['created_at']}',
@@ -300,8 +341,6 @@ class _PostScreenState extends State<PostScreen> {
                     ),
                   ),
                 ),
-
-                // Comment input
                 SafeArea(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
