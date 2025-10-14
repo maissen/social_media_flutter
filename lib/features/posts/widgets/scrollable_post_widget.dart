@@ -1,3 +1,4 @@
+import 'package:demo/features/posts/screens/post_screen.dart';
 import 'package:demo/utils/posts_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,7 +7,6 @@ import 'package:demo/utils/feed_helpers.dart'; // Post model
 import 'package:demo/utils/user_helpers.dart'; // fetchUserProfile
 import 'package:demo/utils/user_profile.dart';
 import 'package:demo/features/profile/screens/profile_screen.dart';
-import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
 
 class PostWidget extends StatefulWidget {
   final Post post;
@@ -256,20 +256,39 @@ class _PostWidgetState extends State<PostWidget> {
           ),
 
           // --- Likes & Comments ---
+          // --- Likes & Comments ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                // Like button
-                Icon(
-                  post.isLikedByMe ? Icons.favorite : Icons.favorite_border,
-                  color: post.isLikedByMe ? Colors.red : Colors.black,
+                // Like button with tap to open LikesBottomSheet
+                InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) =>
+                          LikesBottomSheet(postId: widget.post.postId),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        post.isLikedByMe
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: post.isLikedByMe ? Colors.red : Colors.black,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${post.likesNbr}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  '${post.likesNbr}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+
                 const SizedBox(width: 16),
 
                 // Comment button with tap
