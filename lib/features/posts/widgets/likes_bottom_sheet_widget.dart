@@ -59,45 +59,61 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
               ),
             ),
           ),
+
           const SizedBox(height: 8),
           const Text(
             'Likes',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 8),
+
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : likes.isEmpty
                 ? const Center(child: Text('No likes yet'))
-                : ListView.builder(
-                    itemCount: likes.length,
-                    itemBuilder: (context, index) {
-                      final like = likes[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: like['profile_picture'] != null
-                              ? NetworkImage(like['profile_picture'])
-                              : null,
-                          backgroundColor: Colors.grey[300],
-                        ),
-                        title: Text(like['username'] ?? ''),
-                        subtitle: Text(like['email'] ?? ''),
-                        trailing: like['is_following'] == true
-                            ? const Text(
-                                'Following',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              )
-                            : null,
-                      );
-                    },
+                : ScrollConfiguration(
+                    behavior: const _NoScrollGlowBehavior(),
+                    child: ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: likes.length,
+                      itemBuilder: (context, index) {
+                        final like = likes[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: like['profile_picture'] != null
+                                ? NetworkImage(like['profile_picture'])
+                                : null,
+                            backgroundColor: Colors.grey[300],
+                          ),
+                          title: Text(like['username'] ?? ''),
+                          subtitle: Text(like['email'] ?? ''),
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
       ),
     );
+  }
+}
+
+// Custom scroll behavior (no scrollbar, no glow)
+class _NoScrollGlowBehavior extends ScrollBehavior {
+  const _NoScrollGlowBehavior();
+
+  @override
+  Widget buildViewportChrome(
+    BuildContext context,
+    Widget child,
+    AxisDirection axisDirection,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
   }
 }
