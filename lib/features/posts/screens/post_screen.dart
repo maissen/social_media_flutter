@@ -486,7 +486,21 @@ class _LikeButtonState extends State<LikeButton> {
   /// Function to run when likes count text is clicked
   void _onLikesCountTap() {
     // Example: Navigate to list of users who liked
-    print('Likes count clicked! Show list of users who liked.');
+
+    if (likesCount > 0) {
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (BuildContext context) {
+          return SizedBox(
+            height: 300, // Adjust the height as needed
+            child: Center(child: Text('Likes list will appear here')),
+          );
+        },
+      );
+    }
   }
 
   @override
