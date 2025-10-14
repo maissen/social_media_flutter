@@ -360,3 +360,191 @@ Future<GetLikesResponse> getPostLikes({required int postId}) async {
     );
   }
 }
+
+class CreateCommentResponse {
+  final bool success;
+  final String message;
+
+  CreateCommentResponse({required this.success, required this.message});
+}
+
+class GetCommentsResponse {
+  final bool success;
+  final String message;
+  final List<Map<String, dynamic>>? data;
+
+  GetCommentsResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+}
+
+class LikeCommentResponse {
+  final bool success;
+  final String message;
+  final Map<String, dynamic>? data;
+
+  LikeCommentResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+}
+
+/// Create a comment on a post
+Future<CreateCommentResponse> createComment({
+  required int postId,
+  required String content,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return CreateCommentResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/comments/create?post_id=$postId',
+  );
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'content': content}),
+    );
+
+    final body = jsonDecode(response.body);
+
+    if ((response.statusCode == 201 || response.statusCode == 200) &&
+        body['success'] == true) {
+      return CreateCommentResponse(
+        success: true,
+        message: body['message'] ?? 'Comment created successfully',
+      );
+    } else {
+      return CreateCommentResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to create comment',
+      );
+    }
+  } catch (e) {
+    return CreateCommentResponse(
+      success: false,
+      message: 'An error occurred: $e',
+    );
+  }
+}
+
+/// Get all comments of a post
+Future<GetCommentsResponse> getCommentsOfPost({required int postId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return GetCommentsResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      data: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/comments/all?post_id=$postId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      List<Map<String, dynamic>> commentsList = [];
+      if (body['data'] != null) {
+        commentsList = List<Map<String, dynamic>>.from(body['data']);
+      }
+      return GetCommentsResponse(
+        success: true,
+        message: body['message'] ?? 'Comments retrieved successfully',
+        data: commentsList,
+      );
+    } else {
+      return GetCommentsResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to retrieve comments',
+        data: null,
+      );
+    }
+  } catch (e) {
+    return GetCommentsResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      data: null,
+    );
+  }
+}
+
+/// Like or dislike a comment
+Future<LikeCommentResponse> likeOrDislikeComment({
+  required int commentId,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return LikeCommentResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      data: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/comments/like-deslike/$commentId',
+  );
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return LikeCommentResponse(
+        success: true,
+        message: body['message'] ?? 'Comment liked/disliked successfully',
+        data: body['data'],
+      );
+    } else {
+      return LikeCommentResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to like/dislike comment',
+        data: null,
+      );
+    }
+  } catch (e) {
+    return LikeCommentResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      data: null,
+    );
+  }
+}
