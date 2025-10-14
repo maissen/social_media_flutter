@@ -138,6 +138,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // Username + comment
                                   RichText(
                                     text: TextSpan(
                                       style: const TextStyle(
@@ -156,12 +157,16 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
+
+                                  // Timestamp + like count inline
                                   Text(
                                     createdAt.isNotEmpty
-                                        ? timeago.format(
-                                            DateTime.parse(createdAt),
-                                            locale: 'en_short',
-                                          )
+                                        ? likeCount > 0
+                                              ? '${timeago.format(DateTime.parse(createdAt), locale: 'en_short')} • $likeCount likes'
+                                              : timeago.format(
+                                                  DateTime.parse(createdAt),
+                                                  locale: 'en_short',
+                                                )
                                         : '',
                                     style: const TextStyle(
                                       color: Colors.grey,
@@ -173,32 +178,18 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             ),
                             const SizedBox(width: 8),
 
-                            // ❤️ Like button + count
-                            Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: commentId != null
-                                      ? () => _toggleLike(commentId)
-                                      : null,
-                                  child: Icon(
-                                    likedByUser
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: likedByUser
-                                        ? Colors.red
-                                        : Colors.black,
-                                    size: 20,
-                                  ),
-                                ),
-                                if (likeCount > 0)
-                                  Text(
-                                    '$likeCount',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                              ],
+                            // ❤️ Like button
+                            GestureDetector(
+                              onTap: commentId != null
+                                  ? () => _toggleLike(commentId)
+                                  : null,
+                              child: Icon(
+                                likedByUser
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: likedByUser ? Colors.red : Colors.black,
+                                size: 20,
+                              ),
                             ),
                           ],
                         ),
@@ -207,7 +198,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   ),
           ),
 
-          // 🆕 Comment input + Share button
+          // Comment input + Share button
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.only(top: 8.0),
