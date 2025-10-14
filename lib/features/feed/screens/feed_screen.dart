@@ -1,6 +1,9 @@
 import 'package:demo/features/posts/widgets/scrollable_post_widget.dart';
 import 'package:demo/utils/feed_helpers.dart';
+import 'package:demo/utils/auth_helpers.dart';
+import 'package:demo/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -35,6 +38,45 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    // Show confirmation dialog
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      // Clear stored credentials
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('user_id');
+      await prefs.remove('expires_in');
+      await prefs.remove('login_timestamp');
+
+      // Navigate to login screen
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -52,12 +94,19 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white, // body background
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Feed'),
-        backgroundColor: Colors.white, // AppBar background white
-        foregroundColor: Colors.black, // text & icons black
-        elevation: 0, // remove shadow for flat look
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: ListView.builder(
         itemCount: userFeedPosts.length,

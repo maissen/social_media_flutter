@@ -1,5 +1,5 @@
+import 'package:demo/features/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'features/auth/screens/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,7 +38,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       scrollBehavior: const NoGlowBounceScrollBehavior(), // 👈 global behavior
-      home: const LoginScreen(),
+      home:
+          const AuthCheckScreen(), // 👈 Changed from LoginScreen to AuthCheckScreen
     );
   }
 }

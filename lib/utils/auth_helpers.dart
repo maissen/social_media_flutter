@@ -29,6 +29,13 @@ Future<LoginResponse> loginUser({
     if (response.statusCode == 200 && body['success'] == true) {
       // Save the token, user_id, and expires_in locally
       final prefs = await SharedPreferences.getInstance();
+
+      // Save current timestamp (in seconds since epoch)
+      await prefs.setInt(
+        'login_timestamp',
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      );
+
       await prefs.setString(
         'access_token',
         body['data']['access_token'].toString(),
@@ -122,4 +129,34 @@ Future<RegisterResponse> registerUser({
 Future<String?> getAccessToken() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getString('access_token');
+}
+
+Future<bool> isTokenValid() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+  final expiresIn = prefs.getInt('expires_in');
+  final loginTime = prefs.getInt('login_timestamp');
+
+  if (token == null || expiresIn == null) {
+    return false;
+  }
+
+  // If we don't have a login timestamp, we can't validate expiry
+  if (loginTime == null) {
+    return false;
+  }
+
+  // Calculate expiry time
+  final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  final expiryTime = loginTime + expiresIn;
+
+  return currentTime < expiryTime;
+}
+
+Future<void> logout() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('access_token');
+  await prefs.remove('user_id');
+  await prefs.remove('expires_in');
+  await prefs.remove('login_timestamp');
 }
