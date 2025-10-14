@@ -407,215 +407,51 @@ class CommentsBottomSheet extends StatefulWidget {
 
 class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   final TextEditingController _commentController = TextEditingController();
-
-  late Future<GetCommentsResponse> _commentsFuture;
+  List<Map<String, dynamic>>? comments; // variable to hold comments
 
   @override
   void initState() {
     super.initState();
-    _commentsFuture = getCommentsOfPost(postId: widget.postId);
+
+    List<Map<String, dynamic>>? comments;
+
+    _loadComments();
+  }
+
+  // simple async function to load comments
+  void _loadComments() async {
+    final response = await getCommentsOfPost(postId: widget.postId);
+
+    if (response.success && response.data != null) {
+      setState(() {
+        comments = response.data; // assign API data
+      });
+    } else {
+      setState(() {
+        comments = null; // or keep empty list if you prefer: []
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.85;
-
-    return Container(
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // --- Drag handle like Instagram ---
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[400],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          const Text(
-            'Comments',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-
-          // --- Comments list ---
-          Expanded(
-            child: FutureBuilder<GetCommentsResponse>(
-              future: _commentsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                final response = snapshot.data;
-                if (response == null ||
-                    !response.success ||
-                    response.data == null) {
-                  return Center(
-                    child: Text(response?.message ?? 'Failed to load comments'),
+        child: comments == null
+            ? const Center(child: Text('Failed to load comments'))
+            : ListView.builder(
+                itemCount: comments!.length,
+                itemBuilder: (context, index) {
+                  final comment = comments![index];
+                  return ListTile(
+                    title: Text(comment['username'] ?? 'Unknown'),
+                    subtitle: Text(comment['comment_payload'] ?? ''),
                   );
-                }
-
-                final comments = response.data!;
-                if (comments.isEmpty) {
-                  return const Center(child: Text('No comments yet'));
-                }
-
-                return ListView.builder(
-                  itemCount: comments.length,
-                  itemBuilder: (context, index) {
-                    final comment = comments[index];
-                    final username =
-                        comment['username'] ??
-                        comment['user']?['username'] ??
-                        'Unknown';
-                    final profilePic =
-                        comment['profile_picture'] ??
-                        comment['user']?['profile_picture'] ??
-                        '';
-                    final text = comment['comment_payload'] ?? '';
-                    final createdAt = comment['created_at'] ?? '';
-                    final isLiked = comment['is_liked_by_me'] ?? false;
-                    final likes = comment['likes_nbr'] ?? 0;
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Profile picture
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundImage: profilePic.isNotEmpty
-                                ? NetworkImage(profilePic)
-                                : const AssetImage('assets/default_profile.png')
-                                      as ImageProvider,
-                          ),
-                          const SizedBox(width: 10),
-
-                          // Comment content
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 14,
-                                    ),
-                                    children: [
-                                      TextSpan(
-                                        text: '$username ',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      TextSpan(text: text),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text(
-                                      timeago.format(
-                                        DateTime.parse(createdAt),
-                                        locale: 'en_short',
-                                      ),
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    if (likes > 0)
-                                      Text(
-                                        '$likes likes',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Like button
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                comment['is_liked_by_me'] = !isLiked;
-                                comment['likes_nbr'] = isLiked
-                                    ? likes - 1
-                                    : likes + 1;
-                              });
-                            },
-                            icon: Icon(
-                              isLiked ? Icons.favorite : Icons.favorite_border,
-                              color: isLiked ? Colors.red : Colors.grey,
-                              size: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          const Divider(height: 1),
-
-          // --- Comment input like Instagram ---
-          SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundImage: AssetImage('assets/default_profile.png'),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a comment...',
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (_commentController.text.trim().isNotEmpty) {
-                      // Handle sending comment
-                    }
-                  },
-                  child: const Text(
-                    'Post',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+                },
+              ),
       ),
     );
   }
