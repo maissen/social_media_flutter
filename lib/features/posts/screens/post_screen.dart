@@ -370,8 +370,6 @@ class _PostActions extends StatelessWidget {
             LikeButton(postId: postId),
             Row(
               children: [
-                const Icon(Icons.comment_outlined),
-                const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () => _showCommentsBottomSheet(context),
                   child: Text(
