@@ -40,7 +40,7 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 400,
+      height: 700,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -73,8 +73,9 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
                 : likes.isEmpty
                 ? const Center(child: Text('No likes yet'))
                 : ScrollConfiguration(
-                    behavior: const _NoScrollGlowBehavior(),
+                    behavior: const _NoGlowBounceScrollBehavior(),
                     child: ListView.builder(
+                      // ensure bouncing physics is applied
                       physics: const BouncingScrollPhysics(),
                       itemCount: likes.length,
                       itemBuilder: (context, index) {
@@ -88,6 +89,15 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
                           ),
                           title: Text(like['username'] ?? ''),
                           subtitle: Text(like['email'] ?? ''),
+                          trailing: like['is_following'] == true
+                              ? const Text(
+                                  'Following',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : null,
                         );
                       },
                     ),
@@ -99,19 +109,22 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
   }
 }
 
-// Custom scroll behavior (no scrollbar, no glow)
-class _NoScrollGlowBehavior extends ScrollBehavior {
-  const _NoScrollGlowBehavior();
+/// ScrollBehavior that removes the overscroll glow and keeps bouncing physics.
+/// Overrides buildOverscrollIndicator (newer API) to disable glow.
+class _NoGlowBounceScrollBehavior extends ScrollBehavior {
+  const _NoGlowBounceScrollBehavior();
 
+  // Removes the overscroll indicator (glow) on both Android and iOS.
   @override
-  Widget buildViewportChrome(
+  Widget buildOverscrollIndicator(
     BuildContext context,
     Widget child,
-    AxisDirection axisDirection,
+    ScrollableDetails details,
   ) {
     return child;
   }
 
+  // Provide bouncing physics by default (ListView also explicitly sets it).
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
     return const BouncingScrollPhysics();
