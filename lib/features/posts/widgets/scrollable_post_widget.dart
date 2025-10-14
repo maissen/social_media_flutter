@@ -10,8 +10,8 @@ import 'package:demo/features/profile/screens/profile_screen.dart';
 
 class PostWidget extends StatefulWidget {
   final Post post;
-  final Function(String postId)? onDelete; // optional callback for delete
-  final Function(String postId)? onUpdate; // optional callback for update
+  final Function(String postId)? onDelete;
+  final Function(String postId)? onUpdate;
 
   const PostWidget({Key? key, required this.post, this.onDelete, this.onUpdate})
     : super(key: key);
@@ -25,6 +25,10 @@ class _PostWidgetState extends State<PostWidget> {
   bool isLoading = true;
   String? loggedInUserId;
 
+  // Local states for likes
+  bool _isLiked = false;
+  int _likesCount = 0;
+
   // Flag to hide the widget after deletion
   bool _isDeleted = false;
 
@@ -33,6 +37,10 @@ class _PostWidgetState extends State<PostWidget> {
     super.initState();
     _fetchPostOwner();
     _fetchLoggedInUserId();
+
+    // Initialize local like state safely
+    _isLiked = widget.post.isLikedByMe;
+    _likesCount = widget.post.likesNbr;
   }
 
   Future<void> _fetchPostOwner() async {
@@ -103,7 +111,7 @@ class _PostWidgetState extends State<PostWidget> {
 
                   if (response.success) {
                     setState(() {
-                      widget.post.content = newContent; // update locally
+                      widget.post.content = newContent;
                     });
                   }
                 }
@@ -139,11 +147,9 @@ class _PostWidgetState extends State<PostWidget> {
                   final response = await deletePost(postId: widget.post.postId);
 
                   if (response.success) {
-                    // Hide the widget
                     setState(() {
                       _isDeleted = true;
                     });
-
                     if (widget.onDelete != null) {
                       widget.onDelete!(widget.post.postId.toString());
                     }
@@ -160,7 +166,7 @@ class _PostWidgetState extends State<PostWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isDeleted) {
-      return const SizedBox.shrink(); // shrink widget to height 0
+      return const SizedBox.shrink();
     }
 
     final post = widget.post;
@@ -173,7 +179,7 @@ class _PostWidgetState extends State<PostWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Header (profile + menu) ---
+          // --- Header ---
           InkWell(
             onTap: () {
               Navigator.push(
@@ -244,9 +250,8 @@ class _PostWidgetState extends State<PostWidget> {
                 ? Image.network(
                     post.mediaUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildPlaceholder();
-                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildPlaceholder(),
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return _buildPlaceholder();
@@ -256,42 +261,37 @@ class _PostWidgetState extends State<PostWidget> {
           ),
 
           // --- Likes & Comments ---
-          // --- Likes & Comments ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                // Like button with tap to open LikesBottomSheet
                 InkWell(
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) =>
-                          LikesBottomSheet(postId: widget.post.postId),
+                  onTap: () async {
+                    final response = await likeOrDislikePost(
+                      postId: widget.post.postId,
                     );
+                    if (response.success) {
+                      setState(() {
+                        _isLiked = !_isLiked;
+                        _likesCount += _isLiked ? 1 : -1;
+                      });
+                    }
                   },
                   child: Row(
                     children: [
                       Icon(
-                        post.isLikedByMe
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: post.isLikedByMe ? Colors.red : Colors.black,
+                        _isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: _isLiked ? Colors.red : Colors.black,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${post.likesNbr}',
+                        '$_likesCount likes',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(width: 16),
-
-                // Comment button with tap
                 InkWell(
                   onTap: () {
                     showModalBottomSheet(
@@ -309,7 +309,7 @@ class _PostWidgetState extends State<PostWidget> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${post.commentsNbr}',
+                        '${post.commentsNbr} comments',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
