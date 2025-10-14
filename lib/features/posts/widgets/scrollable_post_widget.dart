@@ -1,3 +1,4 @@
+import 'package:demo/utils/posts_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,9 @@ class _PostWidgetState extends State<PostWidget> {
   UserProfile? postOwner;
   bool isLoading = true;
   String? loggedInUserId;
+
+  // Flag to hide the widget after deletion
+  bool _isDeleted = false;
 
   @override
   void initState() {
@@ -61,19 +65,89 @@ class _PostWidgetState extends State<PostWidget> {
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('Update Post'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                if (widget.onUpdate != null)
-                  widget.onUpdate!(widget.post.postId.toString());
+
+                // Show dialog to enter new content
+                final newContent = await showDialog<String>(
+                  context: context,
+                  builder: (context) {
+                    String tempContent = widget.post.content;
+                    return AlertDialog(
+                      title: const Text('Update Post'),
+                      content: TextField(
+                        controller: TextEditingController(text: tempContent),
+                        maxLines: null,
+                        onChanged: (val) => tempContent = val,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, null),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, tempContent),
+                          child: const Text('Update'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (newContent != null && newContent.isNotEmpty) {
+                  final response = await updatePost(
+                    postId: widget.post.postId,
+                    newContent: newContent,
+                  );
+
+                  if (response.success) {
+                    setState(() {
+                      widget.post.content = newContent; // update locally
+                    });
+                  }
+                }
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete),
               title: const Text('Delete Post'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                if (widget.onDelete != null)
-                  widget.onDelete!(widget.post.postId.toString());
+
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Post'),
+                    content: const Text(
+                      'Are you sure you want to delete this post?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true) {
+                  final response = await deletePost(postId: widget.post.postId);
+
+                  if (response.success) {
+                    // Hide the widget
+                    setState(() {
+                      _isDeleted = true;
+                    });
+
+                    if (widget.onDelete != null) {
+                      widget.onDelete!(widget.post.postId.toString());
+                    }
+                  }
+                }
               },
             ),
           ],
@@ -84,6 +158,10 @@ class _PostWidgetState extends State<PostWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isDeleted) {
+      return const SizedBox.shrink(); // shrink widget to height 0
+    }
+
     final post = widget.post;
     final isOwner =
         loggedInUserId != null && loggedInUserId == post.userId.toString();
@@ -116,9 +194,8 @@ class _PostWidgetState extends State<PostWidget> {
                     backgroundImage:
                         (postOwner?.profilePicture?.isNotEmpty == true)
                         ? NetworkImage(postOwner!.profilePicture)
-                        : null, // no image
-                    backgroundColor:
-                        Colors.grey[400], // gray circle as fallback
+                        : null,
+                    backgroundColor: Colors.grey[400],
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -142,7 +219,6 @@ class _PostWidgetState extends State<PostWidget> {
                       ],
                     ),
                   ),
-                  // Show three dots menu only for post owner
                   if (isOwner)
                     IconButton(
                       icon: const Icon(Icons.more_vert),

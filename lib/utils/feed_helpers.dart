@@ -6,7 +6,7 @@ import '../config/constants.dart';
 class Post {
   final int postId;
   final int userId;
-  final String content;
+  String content;
   final String mediaUrl;
   final DateTime createdAt;
   final int likesNbr;
