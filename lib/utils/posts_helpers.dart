@@ -239,3 +239,124 @@ Future<DeletePostResponse> deletePost({required int postId}) async {
     return DeletePostResponse(success: false, message: 'An error occurred: $e');
   }
 }
+
+class LikePostResponse {
+  final bool success;
+  final String message;
+  final Map<String, dynamic>? data;
+
+  LikePostResponse({required this.success, required this.message, this.data});
+}
+
+class GetLikesResponse {
+  final bool success;
+  final String message;
+  final List<Map<String, dynamic>>? data;
+
+  GetLikesResponse({required this.success, required this.message, this.data});
+}
+
+/// Like or dislike a post
+Future<LikePostResponse> likeOrDislikePost({required int postId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return LikePostResponse(
+      success: false,
+      message: 'User not authenticated',
+      data: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/like-deslike/$postId',
+  );
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return LikePostResponse(
+        success: true,
+        message: body['message'] ?? 'Post liked/disliked successfully',
+        data: body['data'],
+      );
+    } else {
+      return LikePostResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to like/dislike post',
+        data: null,
+      );
+    }
+  } catch (e) {
+    return LikePostResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      data: null,
+    );
+  }
+}
+
+/// Get likes of a post
+Future<GetLikesResponse> getPostLikes({required int postId}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return GetLikesResponse(
+      success: false,
+      message: 'User not authenticated',
+      data: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/posts/likes?post_id=$postId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      List<Map<String, dynamic>> likesList = [];
+      if (body['data'] != null) {
+        likesList = List<Map<String, dynamic>>.from(body['data']);
+      }
+
+      return GetLikesResponse(
+        success: true,
+        message: body['message'] ?? 'Likes fetched successfully',
+        data: likesList,
+      );
+    } else {
+      return GetLikesResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to retrieve likes',
+        data: null,
+      );
+    }
+  } catch (e) {
+    return GetLikesResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      data: null,
+    );
+  }
+}
