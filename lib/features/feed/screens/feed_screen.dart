@@ -39,26 +39,31 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white, // set background to white
+        backgroundColor: Colors.white,
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (errorMessage != null) {
       return Scaffold(
-        backgroundColor: Colors.white, // set background to white
+        backgroundColor: Colors.white,
         body: Center(child: Text(errorMessage!)),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white, // set background to white
-      appBar: AppBar(title: const Text('Feed')),
+      backgroundColor: Colors.white, // body background
+      appBar: AppBar(
+        title: const Text('Feed'),
+        backgroundColor: Colors.white, // AppBar background white
+        foregroundColor: Colors.black, // text & icons black
+        elevation: 0, // remove shadow for flat look
+      ),
       body: ListView.builder(
         itemCount: userFeedPosts.length,
         itemBuilder: (context, index) {
           final post = userFeedPosts[index];
-          return PostWidget(postId: post.postId); // Your post widget
+          return PostWidget(postId: post.postId);
         },
       ),
     );

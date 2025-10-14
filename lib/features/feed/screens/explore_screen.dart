@@ -52,8 +52,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Explore')),
+      backgroundColor: Colors.white, // body background
+      appBar: AppBar(
+        title: const Text('Explore'),
+        backgroundColor: Colors.white, // app bar background
+        foregroundColor: Colors.black, // app bar text & icons
+        elevation: 0, // remove shadow for flat white look
+      ),
       body: ListView.builder(
         itemCount: explorePosts.length,
         itemBuilder: (context, index) {
