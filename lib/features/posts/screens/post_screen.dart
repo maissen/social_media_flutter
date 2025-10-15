@@ -120,7 +120,8 @@ class _PostScreenState extends State<PostScreen> {
             child: RefreshIndicator(
               onRefresh: _fetchPost,
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                // 👇 Disable bounce / overscroll glow
+                physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.all(16.0),
                 child: PostContent(
                   postData: _postData!,
