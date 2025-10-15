@@ -141,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildProfileHeader(),
                   _buildUsernameBioSection(),
-                  const Divider(height: 32),
+                  const SizedBox(height: 24), // <-- Added extra spacing here
                   UserPostsWidget(
                     profileUserId: _userProfile!.userId,
                     loggedInUserId: _loggedInUserId,
