@@ -57,13 +57,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final profile = await fetchUserProfile(widget.userId);
-      final prefs = await SharedPreferences.getInstance();
-      final cachedFollowState = prefs.getBool('follow_state_${widget.userId}');
 
       setState(() {
-        _userProfile = cachedFollowState != null
-            ? profile.copyWith(isFollowing: cachedFollowState)
-            : profile;
+        _userProfile = profile; // always use server value
         _isLoading = false;
       });
     } catch (_) {
@@ -79,12 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final response = await toggleFollow(targetUserId: widget.userId);
 
     if (response.success && response.isFollowing != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(
-        'follow_state_${widget.userId}',
-        response.isFollowing!,
-      );
-
       setState(() {
         _userProfile = _userProfile!.copyWith(
           followersCount: response.isFollowing!
@@ -118,7 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _onSharePostTapped() async {
-    // Use the passed callback if available, otherwise navigate
     if (widget.onSharePostTapped != null) {
       widget.onSharePostTapped!();
     } else {
@@ -196,7 +185,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           CircleAvatar(
             radius: 40,
-            backgroundImage: NetworkImage(_userProfile!.profilePicture),
+            backgroundImage: _userProfile!.profilePicture.isNotEmpty
+                ? NetworkImage(_userProfile!.profilePicture)
+                : null,
+            child: _userProfile!.profilePicture.isEmpty
+                ? const Icon(Icons.person, size: 40)
+                : null,
           ),
           const SizedBox(width: 24),
           Expanded(
