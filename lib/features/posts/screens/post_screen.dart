@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
-import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/posts_helpers.dart';
+import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
+import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 // Global variable accessible anywhere in this file
@@ -74,33 +74,65 @@ class _PostScreenState extends State<PostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_errorMessage != null)
-      return Scaffold(body: Center(child: Text(_errorMessage!)));
-    if (_postData == null)
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Post')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _fetchPost,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_postData == null) {
       return const Scaffold(body: Center(child: Text('Post not found')));
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Post')),
+      appBar: AppBar(title: const Text('Post'), elevation: 1),
       body: Column(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: PostContent(
-                postData: _postData!,
-                loggedInUserId: _loggedInUserId,
-                onUpdate: (updatedPost) {
-                  setState(() => _postData = updatedPost);
-                },
-                onDelete: () => Navigator.pop(context),
+            child: RefreshIndicator(
+              onRefresh: _fetchPost,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: PostContent(
+                  postData: _postData!,
+                  loggedInUserId: _loggedInUserId,
+                  onUpdate: (updatedPost) {
+                    setState(() => _postData = updatedPost);
+                  },
+                  onDelete: () => Navigator.pop(context),
+                ),
               ),
             ),
           ),
           CommentInput(
             controller: _commentController,
-            postId: postResponse.post?['post_id'],
+            postId: _postData!['post_id'],
+            onCommentAdded: _fetchPost,
           ),
         ],
       ),
@@ -127,7 +159,7 @@ class PostContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _PostHeader(
+        PostHeader(
           postData: postData,
           loggedInUserId: loggedInUserId,
           onUpdate: onUpdate,
@@ -136,10 +168,17 @@ class PostContent extends StatelessWidget {
         const SizedBox(height: 16),
         PostMedia(mediaUrl: postData['media_url']),
         const SizedBox(height: 16),
-        if (postData['content'] != null)
-          Text(postData['content'], style: const TextStyle(fontSize: 16)),
+        if (postData['content'] != null &&
+            postData['content'].toString().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              postData['content'],
+              style: const TextStyle(fontSize: 16, height: 1.4),
+            ),
+          ),
         const SizedBox(height: 16),
-        _PostActions(
+        PostActions(
           postId: postData['post_id'],
           likesNbr: postData['likes_nbr'] ?? 0,
           isLikedByMe: postData['is_liked_by_me'] ?? false,
@@ -151,13 +190,13 @@ class PostContent extends StatelessWidget {
   }
 }
 
-class _PostHeader extends StatelessWidget {
+class PostHeader extends StatelessWidget {
   final Map<String, dynamic> postData;
   final int? loggedInUserId;
   final ValueChanged<Map<String, dynamic>> onUpdate;
   final VoidCallback onDelete;
 
-  const _PostHeader({
+  const PostHeader({
     Key? key,
     required this.postData,
     required this.loggedInUserId,
@@ -169,31 +208,38 @@ class _PostHeader extends StatelessWidget {
     final controller = TextEditingController(text: postData['content'] ?? '');
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Update Post'),
         content: TextField(
           controller: controller,
-          maxLines: null,
-          maxLength: 100,
+          maxLines: 5,
+          maxLength: 500,
           decoration: const InputDecoration(
             hintText: 'Edit your post...',
-            counterText: '',
+            border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               final newContent = controller.text.trim();
-              if (newContent.isEmpty) return;
-              Navigator.pop(context);
+              if (newContent.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post content cannot be empty')),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+
               final response = await updatePost(
                 postId: postData['post_id'],
                 newContent: newContent,
               );
+
               if (response.success && response.data != null) {
                 final updatedPost = Map<String, dynamic>.from(postData);
                 updatedPost['content'] = response.data!['new_content'];
@@ -217,18 +263,23 @@ class _PostHeader extends StatelessWidget {
   void _showDeleteDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Delete Post'),
-        content: const Text('Are you sure you want to delete this post?'),
+        content: const Text(
+          'Are you sure you want to delete this post? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(ctx);
+
               final response = await deletePost(postId: postData['post_id']);
+
               if (response.success) {
                 onDelete();
                 ScaffoldMessenger.of(
@@ -240,7 +291,7 @@ class _PostHeader extends StatelessWidget {
                 ).showSnackBar(SnackBar(content: Text(response.message)));
               }
             },
-            child: const Text('Delete'),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -249,28 +300,50 @@ class _PostHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = postData['user'] as Map<String, dynamic>?;
     final isOwner =
-        loggedInUserId != null && postData['user']['user_id'] == loggedInUserId;
+        loggedInUserId != null &&
+        user != null &&
+        user['user_id'] == loggedInUserId;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: postData['user']['profile_picture'] != null
-                  ? NetworkImage(postData['user']['profile_picture'])
-                  : null,
-              radius: 24,
-              child: postData['user']['profile_picture'] == null
-                  ? const Icon(Icons.person)
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              postData['user']['username'] ?? '',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
+        Expanded(
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundImage: user?['profile_picture'] != null
+                    ? NetworkImage(user!['profile_picture'])
+                    : null,
+                radius: 24,
+                child: user?['profile_picture'] == null
+                    ? const Icon(Icons.person, size: 24)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user?['username'] ?? 'Unknown User',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (postData['created_at'] != null)
+                      Text(
+                        _formatDateTime(postData['created_at']),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         if (isOwner)
           PopupMenuButton<String>(
@@ -278,33 +351,79 @@ class _PostHeader extends StatelessWidget {
               if (value == 'update') _showUpdateDialog(context);
               if (value == 'delete') _showDeleteDialog(context);
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'update', child: Text('Update Post')),
-              PopupMenuItem(value: 'delete', child: Text('Delete Post')),
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(
+                value: 'update',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Update Post'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete Post', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
             ],
             icon: const Icon(Icons.more_vert),
           ),
       ],
     );
   }
+
+  String _formatDateTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      return timeago.format(dateTime, locale: 'en_short');
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
 }
 
-class PostMedia extends StatelessWidget {
+class PostMedia extends StatefulWidget {
   final String? mediaUrl;
   const PostMedia({Key? key, this.mediaUrl}) : super(key: key);
 
   @override
+  State<PostMedia> createState() => _PostMediaState();
+}
+
+class _PostMediaState extends State<PostMedia> {
+  @override
   Widget build(BuildContext context) {
     const double aspectRatio = 1.0;
-    if (mediaUrl == null || mediaUrl!.isEmpty) {
+
+    if (widget.mediaUrl == null || widget.mediaUrl!.isEmpty) {
       return AspectRatio(
         aspectRatio: aspectRatio,
         child: Container(
-          color: Colors.grey[300],
-          child: const Icon(
-            Icons.image_not_supported_outlined,
-            size: 80,
-            color: Colors.grey,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported_outlined,
+                size: 80,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No media available',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+            ],
           ),
         ),
       );
@@ -315,18 +434,73 @@ class PostMedia extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
-          mediaUrl!,
+          widget.mediaUrl!,
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(
-            color: Colors.grey[300],
-            child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
-          ),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
+          errorBuilder: (context, error, stackTrace) {
             return Container(
-              color: Colors.grey[300],
-              child: const Center(child: CircularProgressIndicator()),
+              color: Colors.grey[200],
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, size: 60, color: Colors.grey[400]),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Failed to load image',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.mediaUrl!,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 10),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    error.toString(),
+                    style: const TextStyle(color: Colors.red, fontSize: 10),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return child;
+            }
+
+            final progress = loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                : null;
+
+            return Container(
+              color: Colors.grey[200],
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(value: progress, strokeWidth: 3),
+                    if (progress != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             );
           },
         ),
@@ -335,14 +509,14 @@ class PostMedia extends StatelessWidget {
   }
 }
 
-class _PostActions extends StatelessWidget {
+class PostActions extends StatelessWidget {
   final int postId;
   final int likesNbr;
   final bool isLikedByMe;
   final int commentsNbr;
   final String createdAt;
 
-  const _PostActions({
+  const PostActions({
     Key? key,
     required this.postId,
     required this.likesNbr,
@@ -356,7 +530,7 @@ class _PostActions extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CommentsBottomSheet(postId: postId),
+      builder: (ctx) => CommentsBottomSheet(postId: postId),
     );
   }
 
@@ -368,100 +542,30 @@ class _PostActions extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             LikeButton(postId: postId),
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => _showCommentsBottomSheet(context),
-                  child: Text(
-                    '$commentsNbr comments',
+            GestureDetector(
+              onTap: () => _showCommentsBottomSheet(context),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.comment_outlined,
+                    size: 20,
+                    color: Colors.grey[700],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$commentsNbr comment${commentsNbr != 1 ? 's' : ''}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.blue,
                       decoration: TextDecoration.underline,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Posted on: $createdAt',
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
-        ),
-      ],
-    );
-  }
-}
-
-class CommentInput extends StatelessWidget {
-  final TextEditingController controller;
-  final int postId;
-  final VoidCallback? onCommentAdded;
-
-  const CommentInput({
-    Key? key,
-    required this.controller,
-    required this.postId,
-    this.onCommentAdded,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey[300]!)),
-          color: Colors.white,
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText:
-                      'Add a comment ${postResponse.post?['username'] ?? '...'}',
-                  border: InputBorder.none,
-                ),
+                ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.send, color: Colors.blue),
-              onPressed: () async {
-                final content = controller.text.trim();
-                if (content.isNotEmpty) {
-                  FocusScope.of(context).unfocus();
-
-                  final response = await createComment(
-                    postId: postId,
-                    content: content,
-                  );
-
-                  if (response.success) {
-                    controller.clear();
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Comment added!')),
-                    );
-
-                    if (onCommentAdded != null) {
-                      onCommentAdded!();
-                    }
-                  } else {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(response.message)));
-                  }
-                }
-              },
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -505,9 +609,11 @@ class _LikeButtonState extends State<LikeButton> {
         isLiked = userHasLiked;
       });
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(response.message)));
+      }
     }
 
     setState(() => _isLoading = false);
@@ -515,20 +621,37 @@ class _LikeButtonState extends State<LikeButton> {
 
   Future<void> _toggleLike() async {
     if (_isLoading) return;
-    setState(() => _isLoading = true);
+
+    final previousLiked = isLiked;
+    final previousCount = likesCount;
+
+    setState(() {
+      isLiked = !isLiked;
+      likesCount += isLiked ? 1 : -1;
+      _isLoading = true;
+    });
 
     final response = await likeOrDislikePost(postId: widget.postId);
 
     if (response.success) {
       await _fetchLikes();
-      postResponse.post?['is_liked_by_me'] =
-          !postResponse.post?['is_liked_by_me'];
+      if (postResponse.post != null) {
+        postResponse.post!['is_liked_by_me'] = isLiked;
+      }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
-      setState(() => _isLoading = false);
+      setState(() {
+        isLiked = previousLiked;
+        likesCount = previousCount;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(response.message)));
+      }
     }
+
+    setState(() => _isLoading = false);
   }
 
   void _onLikesCountTap() {
@@ -537,7 +660,7 @@ class _LikeButtonState extends State<LikeButton> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (context) => LikesBottomSheet(postId: widget.postId),
+        builder: (ctx) => LikesBottomSheet(postId: widget.postId),
       );
     }
   }
@@ -548,30 +671,127 @@ class _LikeButtonState extends State<LikeButton> {
       children: [
         InkWell(
           onTap: _toggleLike,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  postResponse.post?['is_liked_by_me']
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  color: postResponse.post?['is_liked_by_me']
-                      ? Colors.red
-                      : Colors.grey,
-                ),
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : Colors.grey[700],
+                    size: 24,
+                  ),
+          ),
         ),
         const SizedBox(width: 4),
-        RichText(
-          text: TextSpan(
-            text: '$likesCount likes',
-            style: const TextStyle(fontSize: 14, color: Colors.blue),
-            recognizer: TapGestureRecognizer()..onTap = _onLikesCountTap,
+        GestureDetector(
+          onTap: _onLikesCountTap,
+          child: Text(
+            '$likesCount like${likesCount != 1 ? 's' : ''}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class CommentInput extends StatelessWidget {
+  final TextEditingController controller;
+  final int postId;
+  final VoidCallback? onCommentAdded;
+
+  const CommentInput({
+    Key? key,
+    required this.controller,
+    required this.postId,
+    this.onCommentAdded,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey[300]!)),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                maxLines: null,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText:
+                      'Add a comment${postResponse.post?['user']?['username'] != null ? ' @${postResponse.post!['user']['username']}' : ''}...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.send, color: Colors.blue),
+              onPressed: () async {
+                final content = controller.text.trim();
+                if (content.isEmpty) return;
+
+                FocusScope.of(context).unfocus();
+
+                final response = await createComment(
+                  postId: postId,
+                  content: content,
+                );
+
+                if (response.success) {
+                  controller.clear();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Comment added!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+
+                  if (onCommentAdded != null) {
+                    onCommentAdded!();
+                  }
+                } else {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(response.message)));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
