@@ -53,41 +53,44 @@ class _FollowersScreenState extends State<FollowersScreen> {
   }
 
   Widget _buildUserList() {
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 8),
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       itemCount: _users.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.grey),
       itemBuilder: (context, index) {
         final user = _users[index];
 
-        return ListTile(
-          leading: CircleAvatar(
-            radius: 24,
-            backgroundImage: NetworkImage(
-              user['profile_picture'] ?? 'https://via.placeholder.com/150',
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              radius: 24,
+              backgroundImage: NetworkImage(
+                user['profile_picture'] ?? 'https://via.placeholder.com/150',
+              ),
             ),
+            title: Text(
+              user['username'] ?? 'Unknown',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              user['bio'] ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () {
+              final userId = user['user_id']?.toString();
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ProfileScreen(userId: userId, showTopBanner: true),
+                  ),
+                );
+              }
+            },
           ),
-          title: Text(
-            user['username'] ?? 'Unknown',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            user['bio'] ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onTap: () {
-            final userId = user['user_id']?.toString();
-            if (userId != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ProfileScreen(userId: userId, showTopBanner: true),
-                ),
-              );
-            }
-          },
         );
       },
     );
