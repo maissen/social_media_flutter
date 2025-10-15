@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:demo/utils/user_helpers.dart';
 import 'package:demo/features/profile/screens/profile_screen.dart';
+import 'package:demo/utils/user_helpers.dart';
 
 class FollowersScreen extends StatefulWidget {
   final String userId; // the user whose followers we want to display
@@ -13,8 +13,6 @@ class FollowersScreen extends StatefulWidget {
 class _FollowersScreenState extends State<FollowersScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _users = [];
-  final Map<String, bool> _isFollowLoading =
-      {}; // track follow/unfollow per user
 
   @override
   void initState() {
@@ -31,35 +29,6 @@ class _FollowersScreenState extends State<FollowersScreen> {
       setState(() {
         _isLoading = false;
         _users = response.success ? response.users ?? [] : [];
-        // initialize follow loading state
-        for (var user in _users) {
-          final userId = user['user_id'];
-          if (userId != null && !_isFollowLoading.containsKey(userId)) {
-            _isFollowLoading[userId] = false;
-          }
-        }
-      });
-    }
-  }
-
-  void _onFollowButtonPressed(Map<String, dynamic> user) async {
-    final userId = user['user_id'];
-    if (userId == null) return;
-
-    setState(() => _isFollowLoading[userId] = true);
-
-    final response = await toggleFollow(targetUserId: userId);
-
-    if (mounted) {
-      setState(() {
-        _isFollowLoading[userId] = false;
-        if (response.success && response.isFollowing != null) {
-          user['is_following'] = response.isFollowing;
-        } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(response.message)));
-        }
       });
     }
   }
@@ -90,7 +59,6 @@ class _FollowersScreenState extends State<FollowersScreen> {
       separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.grey),
       itemBuilder: (context, index) {
         final user = _users[index];
-        final userId = user['user_id'];
 
         return ListTile(
           leading: CircleAvatar(
@@ -107,42 +75,6 @@ class _FollowersScreenState extends State<FollowersScreen> {
             user['bio'] ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-          ),
-          trailing: SizedBox(
-            width: 90,
-            child: (_isFollowLoading[userId] ?? false)
-                ? const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: () => _onFollowButtonPressed(user),
-                    style: TextButton.styleFrom(
-                      foregroundColor: user['is_following'] == true
-                          ? Colors.black
-                          : Colors.white,
-                      backgroundColor: user['is_following'] == true
-                          ? Colors.grey[300]
-                          : Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      minimumSize: const Size(70, 32),
-                    ),
-                    child: Text(
-                      user['is_following'] == true ? 'Following' : 'Follow',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: user['is_following'] == true
-                            ? Colors.black
-                            : Colors.white,
-                      ),
-                    ),
-                  ),
           ),
           onTap: () {
             final userId = user['user_id']?.toString();
