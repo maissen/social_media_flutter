@@ -15,7 +15,7 @@ class MainAppScreen extends StatefulWidget {
 }
 
 class _MainAppScreenState extends State {
-  int _currentIndex = 0;
+  int _currentIndex = 1;
   String? _loggedInUserId;
   bool _isLoading = true;
 
@@ -137,7 +137,7 @@ class _MainAppScreenState extends State {
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -166,7 +166,7 @@ class _MainAppScreenState extends State {
         curve: Curves.easeInOut,
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 16 : 12,
-          vertical: 10,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
           gradient: isSelected
@@ -228,8 +228,8 @@ class _MainAppScreenState extends State {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-        width: 56,
-        height: 56,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
