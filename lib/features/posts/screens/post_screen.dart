@@ -590,15 +590,14 @@ class PostActions extends StatelessWidget {
                   Icon(
                     Icons.comment_outlined,
                     size: 20,
-                    color: Colors.grey[700],
+                    color: const Color.fromARGB(255, 75, 75, 75),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     '$commentsNbr comment${commentsNbr != 1 ? 's' : ''}',
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.blue,
-                      decoration: TextDecoration.underline,
+                      color: Color.fromARGB(255, 75, 75, 75),
                     ),
                   ),
                 ],
@@ -610,7 +609,7 @@ class PostActions extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 4),
           child: Text(
-            _formatDate(createdAt), // 👈 human-readable timestamp
+            _formatDate(createdAt),
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ),
@@ -754,8 +753,7 @@ class _LikeButtonState extends State<LikeButton> {
               '$likesCount like${likesCount != 1 ? 's' : ''}',
               style: const TextStyle(
                 fontSize: 14,
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
+                color: Color.fromARGB(255, 75, 75, 75),
               ),
             ),
           ),
