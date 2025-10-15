@@ -272,3 +272,69 @@ Future<FollowListResponse> getFollowings({required String userId}) async {
     );
   }
 }
+
+class NotificationsResponse {
+  final bool success;
+  final String message;
+  final List<Map<String, dynamic>>? notifications;
+
+  NotificationsResponse({
+    required this.success,
+    required this.message,
+    this.notifications,
+  });
+}
+
+Future<NotificationsResponse> fetchNotifications({
+  required String userId,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token'); // Get token
+
+  if (token == null) {
+    return NotificationsResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      notifications: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/notifications?user_id=$userId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(body['data']);
+
+      return NotificationsResponse(
+        success: true,
+        message: body['message'] ?? 'Notifications retrieved successfully',
+        notifications: notifications,
+      );
+    } else {
+      return NotificationsResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to fetch notifications',
+        notifications: null,
+      );
+    }
+  } catch (e) {
+    return NotificationsResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      notifications: null,
+    );
+  }
+}
