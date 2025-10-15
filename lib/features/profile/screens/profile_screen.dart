@@ -280,18 +280,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
-    final content = Column(
-      children: [
-        Text(
-          count.toString(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        child: Column(
+          children: [
+            Text(
+              count.toString(),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-      ],
+      ),
     );
-    return onTap != null
-        ? GestureDetector(onTap: onTap, child: content)
-        : content;
   }
 }
