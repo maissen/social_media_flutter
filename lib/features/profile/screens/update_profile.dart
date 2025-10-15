@@ -221,9 +221,11 @@ class _UpdateProfileState extends State<UpdateProfile> {
               controller: _bioController,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'New Bio',
+                labelText: 'Enter your new bio',
+                counterText: '', // Optional: hides the default counter text
               ),
               maxLines: 3,
+              maxLength: 150,
             ),
             const SizedBox(height: 20),
 
