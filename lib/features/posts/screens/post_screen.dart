@@ -7,8 +7,9 @@ import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
 import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-// Global variable accessible anywhere in this file
+// Global variables accessible anywhere in this file
 late GetPostResponse postResponse;
+bool isPostLikedByMe = false;
 
 class PostScreen extends StatefulWidget {
   final String postId;
@@ -48,6 +49,9 @@ class _PostScreenState extends State<PostScreen> {
       postResponse = await getPostById(int.parse(widget.postId));
 
       if (postResponse.success && postResponse.post != null) {
+        // Update global variable from API response
+        isPostLikedByMe = postResponse.post!['is_liked_by_me'] ?? false;
+
         setState(() {
           _postData = postResponse.post!;
           _isLoading = false;
@@ -181,7 +185,7 @@ class PostContent extends StatelessWidget {
         PostActions(
           postId: postData['post_id'],
           likesNbr: postData['likes_nbr'] ?? 0,
-          isLikedByMe: postData['is_liked_by_me'] ?? false,
+          isLikedByMe: isPostLikedByMe,
           commentsNbr: postData['comments_nbr'] ?? 0,
           createdAt: postData['created_at'],
         ),
@@ -581,69 +585,79 @@ class LikeButton extends StatefulWidget {
 
 class _LikeButtonState extends State<LikeButton> {
   int likesCount = 0;
-  bool isLiked = false;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchLikes();
+    // Initialize from the global postResponse
+    if (postResponse.post != null) {
+      likesCount = postResponse.post!['likes_nbr'] ?? 0;
+    }
   }
 
-  Future<void> _fetchLikes() async {
-    setState(() => _isLoading = true);
-
-    final response = await getPostLikes(postId: widget.postId);
-
-    if (response.success && response.data != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final currentUserEmail = prefs.getString('email');
-
-      final likesList = response.data!;
-      final userHasLiked = likesList.any(
-        (like) => like['email'] != null && like['email'] == currentUserEmail,
-      );
-
-      setState(() {
-        likesCount = likesList.length;
-        isLiked = userHasLiked;
-      });
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
+  @override
+  void didUpdateWidget(LikeButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update state if postResponse changes
+    if (postResponse.post != null) {
+      if (likesCount != (postResponse.post!['likes_nbr'] ?? 0)) {
+        setState(() {
+          likesCount = postResponse.post!['likes_nbr'] ?? 0;
+        });
       }
     }
-
-    setState(() => _isLoading = false);
   }
 
   Future<void> _toggleLike() async {
     if (_isLoading) return;
 
-    final previousLiked = isLiked;
-    final previousCount = likesCount;
-
-    setState(() {
-      isLiked = !isLiked;
-      likesCount += isLiked ? 1 : -1;
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final response = await likeOrDislikePost(postId: widget.postId);
 
-    if (response.success) {
-      await _fetchLikes();
-      if (postResponse.post != null) {
-        postResponse.post!['is_liked_by_me'] = isLiked;
+    if (response.success && response.data != null) {
+      bool newIsLiked;
+      int newLikesCount = likesCount;
+
+      // Case 1: API returns 'is_liked' (dislike response)
+      if (response.data!.containsKey('is_liked')) {
+        newIsLiked = response.data!['is_liked'] == true;
+        // Adjust likes count
+        if (newIsLiked && !isPostLikedByMe) {
+          newLikesCount += 1; // user just liked the post
+        } else if (!newIsLiked && isPostLikedByMe) {
+          newLikesCount -= 1; // user just unliked the post
+        }
       }
-    } else {
+      // Case 2: API returns the whole post (like response)
+      else if (response.data!.containsKey('is_liked_by_me') &&
+          response.data!.containsKey('likes_nbr')) {
+        newIsLiked = response.data!['is_liked_by_me'] == true;
+        newLikesCount += 1; // user just liked the post
+      }
+      // Fallback
+      else {
+        newIsLiked = isPostLikedByMe;
+      }
+
+      // Update global variable
+      isPostLikedByMe = newIsLiked;
+
       setState(() {
-        isLiked = previousLiked;
-        likesCount = previousCount;
+        likesCount = newLikesCount;
       });
 
+      // Update global postResponse
+      if (postResponse.post != null) {
+        postResponse.post!['is_liked_by_me'] = newIsLiked;
+        postResponse.post!['likes_nbr'] = newLikesCount;
+      }
+
+      print(
+        'Like/Dislike API response: $newIsLiked, likesCount: $newLikesCount',
+      );
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -655,14 +669,12 @@ class _LikeButtonState extends State<LikeButton> {
   }
 
   void _onLikesCountTap() {
-    if (likesCount > 0) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => LikesBottomSheet(postId: widget.postId),
-      );
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => LikesBottomSheet(postId: widget.postId),
+    );
   }
 
   @override
@@ -681,21 +693,25 @@ class _LikeButtonState extends State<LikeButton> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: isLiked ? Colors.red : Colors.grey[700],
+                    isPostLikedByMe ? Icons.favorite : Icons.favorite_border,
+                    color: isPostLikedByMe ? Colors.red : Colors.grey[700],
                     size: 24,
                   ),
           ),
         ),
         const SizedBox(width: 4),
-        GestureDetector(
+        InkWell(
           onTap: _onLikesCountTap,
-          child: Text(
-            '$likesCount like${likesCount != 1 ? 's' : ''}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.blue,
-              decoration: TextDecoration.underline,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              '$likesCount like${likesCount != 1 ? 's' : ''}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.blue,
+                decoration: TextDecoration.underline,
+              ),
             ),
           ),
         ),

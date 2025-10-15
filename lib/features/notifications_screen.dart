@@ -13,28 +13,12 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _notifications = [];
-  Timer? _timer; // Timer to refresh every second
   bool _isFetching = false; // Prevent overlapping API calls
 
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
-    _startAutoRefresh();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _startAutoRefresh() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (!_isFetching) {
-        await _loadNotifications();
-      }
-    });
+    _loadNotifications(); // Load notifications only once when screen loads
   }
 
   Future<void> _loadNotifications() async {

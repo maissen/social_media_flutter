@@ -250,6 +250,8 @@ class LikePostResponse {
   final Map<String, dynamic>? data;
 
   LikePostResponse({required this.success, required this.message, this.data});
+
+  toJson() {}
 }
 
 class GetLikesResponse {
@@ -287,18 +289,21 @@ Future<LikePostResponse> likeOrDislikePost({required int postId}) async {
     );
 
     final body = jsonDecode(response.body);
+    final Map<String, dynamic>? data = body['data'] != null
+        ? Map<String, dynamic>.from(body['data'])
+        : null;
 
     if (response.statusCode == 200 && body['success'] == true) {
       return LikePostResponse(
         success: true,
         message: body['message'] ?? 'Post liked/disliked successfully',
-        data: body['data'],
+        data: data,
       );
     } else {
       return LikePostResponse(
         success: false,
         message: body['message'] ?? 'Failed to like/dislike post',
-        data: null,
+        data: data,
       );
     }
   } catch (e) {
