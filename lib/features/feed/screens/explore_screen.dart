@@ -52,20 +52,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white, // body background
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Explore'),
-        backgroundColor: Colors.white, // app bar background
-        foregroundColor: Colors.black, // app bar text & icons
-        elevation: 0, // remove shadow for flat white look
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
       ),
-      body: ListView.builder(
-        itemCount: explorePosts.length,
-        itemBuilder: (context, index) {
-          final post = explorePosts[index];
-          return PostWidget(postId: post.postId);
-        },
-      ),
+      body: explorePosts.isEmpty
+          ? const Center(child: Text('No posts available'))
+          : ListView.builder(
+              itemCount: explorePosts.length,
+              itemBuilder: (context, index) {
+                final post = explorePosts[index];
+                return PostWidget(postId: post.postId);
+              },
+            ),
     );
   }
 }

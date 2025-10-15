@@ -91,6 +91,19 @@ class _FeedScreenState extends State<FeedScreen> {
       );
     }
 
+    // Show message when no posts are available
+    if (userFeedPosts.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text(
+            'No posts available.',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -110,9 +123,7 @@ class _FeedScreenState extends State<FeedScreen> {
             tooltip: 'Notifications',
           ),
           Padding(
-            padding: const EdgeInsets.only(
-              left: 8.0,
-            ), // spacing between buttons
+            padding: const EdgeInsets.only(left: 8.0),
             child: IconButton(
               icon: const Icon(Icons.logout),
               onPressed: _logout,
