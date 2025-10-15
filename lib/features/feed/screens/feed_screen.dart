@@ -1,3 +1,4 @@
+import 'package:demo/features/notifications_screen.dart';
 import 'package:demo/features/posts/widgets/scrollable_post_widget.dart';
 import 'package:demo/utils/feed_helpers.dart';
 import 'package:demo/utils/auth_helpers.dart';
@@ -39,7 +40,6 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _logout() async {
-    // Show confirmation dialog
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -59,14 +59,12 @@ class _FeedScreenState extends State<FeedScreen> {
     );
 
     if (shouldLogout == true) {
-      // Clear stored credentials
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('access_token');
       await prefs.remove('user_id');
       await prefs.remove('expires_in');
       await prefs.remove('login_timestamp');
 
-      // Navigate to login screen
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -102,9 +100,24 @@ class _FeedScreenState extends State<FeedScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+            tooltip: 'Notifications',
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 8.0,
+            ), // spacing between buttons
+            child: IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _logout,
+              tooltip: 'Logout',
+            ),
           ),
         ],
       ),
