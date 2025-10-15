@@ -539,9 +539,45 @@ class PostActions extends StatelessWidget {
     );
   }
 
+  String _formatDate(String dateStr) {
+    try {
+      final dateTime = DateTime.parse(dateStr);
+      return "${_monthName(dateTime.month)} ${dateTime.day}, ${dateTime.year} at "
+          "${_formatHour(dateTime)}";
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  String _monthName(int month) {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    return months[month - 1];
+  }
+
+  String _formatHour(DateTime dt) {
+    int hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    String minute = dt.minute.toString().padLeft(2, '0');
+    String period = dt.hour >= 12 ? 'PM' : 'AM';
+    return "$hour:$minute $period";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start, // 👈 aligns text nicely
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -569,6 +605,14 @@ class PostActions extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Text(
+            _formatDate(createdAt), // 👈 human-readable timestamp
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
         ),
       ],
     );
