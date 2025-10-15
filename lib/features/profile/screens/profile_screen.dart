@@ -75,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final response = await toggleFollow(targetUserId: widget.userId);
 
     if (response.success && response.isFollowing != null) {
+      // Optimistically update UI without showing a SnackBar
       setState(() {
         _userProfile = _userProfile!.copyWith(
           followersCount: response.isFollowing!
@@ -84,17 +85,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         _isFollowLoading = false;
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
     } else {
       setState(() => _isFollowLoading = false);
+      // Show SnackBar only on error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
