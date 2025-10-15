@@ -132,25 +132,26 @@ Future<String?> getAccessToken() async {
 }
 
 Future<bool> isTokenValid() async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-  final expiresIn = prefs.getInt('expires_in');
-  final loginTime = prefs.getInt('login_timestamp');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    final expiresIn = prefs.getInt('expires_in');
+    final loginTime = prefs.getInt('login_timestamp');
 
-  if (token == null || expiresIn == null) {
+    if (token == null || expiresIn == null || loginTime == null) {
+      return false;
+    }
+
+    // Calculate expiry time
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final expiryTime = loginTime + expiresIn;
+
+    return currentTime < expiryTime;
+  } catch (e) {
+    // If anything goes wrong, logout the user
+    await logout();
     return false;
   }
-
-  // If we don't have a login timestamp, we can't validate expiry
-  if (loginTime == null) {
-    return false;
-  }
-
-  // Calculate expiry time
-  final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  final expiryTime = loginTime + expiresIn;
-
-  return currentTime < expiryTime;
 }
 
 Future<void> logout() async {

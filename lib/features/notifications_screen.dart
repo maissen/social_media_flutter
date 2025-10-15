@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:demo/utils/user_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -64,17 +65,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _loadNotifications();
   }
 
-  String timeAgo(String isoDate) {
+  String formatDateTime(String isoDate) {
     final date = DateTime.parse(isoDate).toLocal();
-    final diff = DateTime.now().difference(date);
-
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
-    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
-    return '${(diff.inDays / 365).floor()}y ago';
+    final formatter = DateFormat(
+      'MMM dd, yyyy – hh:mm a',
+    ); // e.g., Oct 15, 2025 – 10:39 AM
+    return formatter.format(date);
   }
 
   @override
@@ -144,14 +140,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       title: Text(notification['message'] ?? ''),
       subtitle: Text(
         notification['created_at'] != null
-            ? timeAgo(notification['created_at'])
+            ? formatDateTime(notification['created_at'])
             : 'Just now',
+        style: const TextStyle(
+          color: Colors.grey, // make time gray
+          fontSize: 13, // optional: slightly smaller font
+        ),
       ),
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tapped: ${notification['message']}')),
-        );
-      },
+      onTap: () {},
     );
   }
 
