@@ -59,7 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = await fetchUserProfile(widget.userId);
 
       setState(() {
-        _userProfile = profile; // always use server value
+        _userProfile = profile;
         _isLoading = false;
       });
     } catch (_) {
@@ -75,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final response = await toggleFollow(targetUserId: widget.userId);
 
     if (response.success && response.isFollowing != null) {
-      // Optimistically update UI without showing a SnackBar
       setState(() {
         _userProfile = _userProfile!.copyWith(
           followersCount: response.isFollowing!
@@ -87,7 +86,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } else {
       setState(() => _isFollowLoading = false);
-      // Show SnackBar only on error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -122,15 +120,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.showTopBanner
-          ? AppBar(
-              leading: IconButton(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        leading: widget.showTopBanner
+            ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => Navigator.pop(context),
-              ),
-              elevation: 0,
-            )
-          : null,
+              )
+            : null,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0), // added right margin
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Create Post',
+              onPressed: _onSharePostTapped,
+            ),
+          ),
+        ],
+        elevation: 0,
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _userProfile == null
