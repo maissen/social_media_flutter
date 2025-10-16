@@ -73,23 +73,26 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
     }
 
     if (_userPosts == null || _userPosts!.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              'No posts shared yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            if (widget.loggedInUserId == widget.profileUserId &&
-                widget.onSharePostTapped != null)
-              ElevatedButton(
-                onPressed: widget.onSharePostTapped,
-                child: const Text('Share a Post'),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // keeps it centered tightly
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'No posts shared yet',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-          ],
+              const SizedBox(height: 12),
+              if (widget.loggedInUserId == widget.profileUserId &&
+                  widget.onSharePostTapped != null)
+                ElevatedButton(
+                  onPressed: widget.onSharePostTapped,
+                  child: const Text('Share a Post'),
+                ),
+            ],
+          ),
         ),
       );
     }
