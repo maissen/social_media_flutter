@@ -42,39 +42,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Widget bodyContent;
-
-    if (isLoading) {
-      bodyContent = const Center(child: CircularProgressIndicator());
-    } else if (errorMessage != null) {
-      bodyContent = Center(child: Text(errorMessage!));
-    } else if (explorePosts.isEmpty) {
-      bodyContent = const Center(child: Text('No posts available'));
-    } else {
-      bodyContent = ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: explorePosts.length,
-        itemBuilder: (context, index) {
-          final post = explorePosts[index];
-          return PostWidget(postId: post.postId);
-        },
-      );
-    }
-
-    // Wrap all states in RefreshIndicator
-    if (bodyContent is! RefreshIndicator) {
-      bodyContent = RefreshIndicator(
-        onRefresh: _loadExploreFeed,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height,
-            child: bodyContent,
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -83,7 +50,52 @@ class _ExploreScreenState extends State<ExploreScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: bodyContent,
+      body: RefreshIndicator(
+        onRefresh: _loadExploreFeed,
+        child: isLoading
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 300,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              )
+            : errorMessage != null
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: Center(child: Text(errorMessage!)),
+                  ),
+                ],
+              )
+            : explorePosts.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: const Center(
+                      child: Text(
+                        'No posts available',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: explorePosts.length,
+                itemBuilder: (context, index) {
+                  final post = explorePosts[index];
+                  return PostWidget(postId: post.postId);
+                },
+              ),
+      ),
     );
   }
 }
