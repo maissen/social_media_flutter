@@ -141,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildProfileHeader(),
                   _buildUsernameBioSection(),
-                  const SizedBox(height: 24), // <-- Added extra spacing here
+                  const SizedBox(height: 24),
                   UserPostsWidget(
                     profileUserId: _userProfile!.userId,
                     loggedInUserId: _loggedInUserId,
@@ -224,6 +224,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildUsernameBioSection() {
+    final hasBio = _userProfile!.bio.trim().isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -233,8 +235,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _userProfile!.username,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
-          const SizedBox(height: 4),
-          Text(_userProfile!.bio, style: const TextStyle(fontSize: 14)),
+          if (hasBio) ...[
+            const SizedBox(height: 4),
+            Text(_userProfile!.bio, style: const TextStyle(fontSize: 14)),
+          ],
           const SizedBox(height: 8),
           if (_loggedInUserId == _userProfile!.userId)
             GestureDetector(
