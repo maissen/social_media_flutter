@@ -21,6 +21,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Future<void> _loadExploreFeed() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
     try {
       final posts = await fetchExploreFeed();
       setState(() {
@@ -37,17 +42,36 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget bodyContent;
+
     if (isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator()),
+      bodyContent = const Center(child: CircularProgressIndicator());
+    } else if (errorMessage != null) {
+      bodyContent = Center(child: Text(errorMessage!));
+    } else if (explorePosts.isEmpty) {
+      bodyContent = const Center(child: Text('No posts available'));
+    } else {
+      bodyContent = ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: explorePosts.length,
+        itemBuilder: (context, index) {
+          final post = explorePosts[index];
+          return PostWidget(postId: post.postId);
+        },
       );
     }
 
-    if (errorMessage != null) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: Text(errorMessage!)),
+    // Wrap all states in RefreshIndicator
+    if (bodyContent is! RefreshIndicator) {
+      bodyContent = RefreshIndicator(
+        onRefresh: _loadExploreFeed,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height,
+            child: bodyContent,
+          ),
+        ),
       );
     }
 
@@ -59,15 +83,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: explorePosts.isEmpty
-          ? const Center(child: Text('No posts available'))
-          : ListView.builder(
-              itemCount: explorePosts.length,
-              itemBuilder: (context, index) {
-                final post = explorePosts[index];
-                return PostWidget(postId: post.postId);
-              },
-            ),
+      body: bodyContent,
     );
   }
 }

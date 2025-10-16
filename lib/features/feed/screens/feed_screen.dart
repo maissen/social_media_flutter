@@ -96,12 +96,31 @@ class _FeedScreenState extends State<FeedScreen> {
         ),
       );
     } else {
-      bodyContent = ListView.builder(
-        itemCount: userFeedPosts.length,
-        itemBuilder: (context, index) {
-          final post = userFeedPosts[index];
-          return PostWidget(postId: post.postId);
-        },
+      bodyContent = RefreshIndicator(
+        onRefresh: _loadUserFeed,
+        child: ListView.builder(
+          physics:
+              const AlwaysScrollableScrollPhysics(), // required for pull-to-refresh when list is short
+          itemCount: userFeedPosts.length,
+          itemBuilder: (context, index) {
+            final post = userFeedPosts[index];
+            return PostWidget(postId: post.postId);
+          },
+        ),
+      );
+    }
+
+    // Wrap the empty/error/loading states with RefreshIndicator as well
+    if (bodyContent is! RefreshIndicator) {
+      bodyContent = RefreshIndicator(
+        onRefresh: _loadUserFeed,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height,
+            child: bodyContent,
+          ),
+        ),
       );
     }
 
