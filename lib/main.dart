@@ -1,42 +1,45 @@
+import 'package:demo/features/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:window_size/window_size.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+}
 
-  if (Platform.isWindows) {
-    // Set window title
-    setWindowTitle('BrainHub - Where you inspire');
+/// Global scroll behavior: removes glow and adds iOS-like bounce everywhere.
+class NoGlowBounceScrollBehavior extends ScrollBehavior {
+  const NoGlowBounceScrollBehavior();
 
-    // Fixed window size (unresizable)
-    const fixedSize = Size(430, 932);
-    setWindowMinSize(fixedSize);
-    setWindowMaxSize(fixedSize);
-
-    // Set initial position and size
-    setWindowFrame(Rect.fromLTWH(100, 100, fixedSize.width, fixedSize.height));
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Removes the glow effect when overscrolling
+    return child;
   }
 
-  runApp(MyApp());
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    // Adds iOS-style bounce effect to all scrollables
+    return const BouncingScrollPhysics();
+  }
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'iPhone 17 Pro Max Demo',
+      title: 'BrainHub - Where you inspire',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        appBar: AppBar(title: Text('iPhone 17 Pro Max Window')),
-        body: Center(
-          child: Text(
-            'This window matches the iPhone 17 Pro Max size\n(430 x 932 px)',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20),
-          ),
-        ),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+      scrollBehavior: const NoGlowBounceScrollBehavior(), // 👈 global behavior
+      home:
+          const AuthCheckScreen(), // 👈 Changed from LoginScreen to AuthCheckScreen
     );
   }
 }
