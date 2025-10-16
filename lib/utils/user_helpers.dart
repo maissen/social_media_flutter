@@ -103,7 +103,7 @@ Future<ToggleFollowResponse> toggleFollow({
   }
 
   final url = Uri.parse(
-    '${AppConstants.baseApiUrl}/users/follow-unfollow/?target_user_id=$targetUserId',
+    '${AppConstants.baseApiUrl}/users/follow-unfollow?target_user_id=$targetUserId',
   );
 
   try {
