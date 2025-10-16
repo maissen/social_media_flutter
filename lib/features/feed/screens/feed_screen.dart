@@ -25,6 +25,11 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _loadUserFeed() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
     try {
       final posts = await fetchUserFeed();
       setState(() {
@@ -77,30 +82,26 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget bodyContent;
+
     if (isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (errorMessage != null) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: Text(errorMessage!)),
-      );
-    }
-
-    // Show message when no posts are available
-    if (userFeedPosts.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Text(
-            'No posts available.',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
+      bodyContent = const Center(child: CircularProgressIndicator());
+    } else if (errorMessage != null) {
+      bodyContent = Center(child: Text(errorMessage!));
+    } else if (userFeedPosts.isEmpty) {
+      bodyContent = const Center(
+        child: Text(
+          'No posts available.',
+          style: TextStyle(fontSize: 18, color: Colors.grey),
         ),
+      );
+    } else {
+      bodyContent = ListView.builder(
+        itemCount: userFeedPosts.length,
+        itemBuilder: (context, index) {
+          final post = userFeedPosts[index];
+          return PostWidget(postId: post.postId);
+        },
       );
     }
 
@@ -132,13 +133,7 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: userFeedPosts.length,
-        itemBuilder: (context, index) {
-          final post = userFeedPosts[index];
-          return PostWidget(postId: post.postId);
-        },
-      ),
+      body: bodyContent,
     );
   }
 }
