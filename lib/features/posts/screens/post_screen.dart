@@ -73,6 +73,8 @@ class _PostScreenState extends State<PostScreen> {
   @override
   void dispose() {
     _commentController.dispose();
+    // When the user leaves the post screen, signal that the profile might need refresh
+    Navigator.pop(context, true);
     super.dispose();
   }
 
@@ -112,34 +114,41 @@ class _PostScreenState extends State<PostScreen> {
       return const Scaffold(body: Center(child: Text('Post not found')));
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Post'), elevation: 1),
-      body: Column(
-        children: [
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _fetchPost,
-              child: SingleChildScrollView(
-                // 👇 Disable bounce / overscroll glow
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: PostContent(
-                  postData: _postData!,
-                  loggedInUserId: _loggedInUserId,
-                  onUpdate: (updatedPost) {
-                    setState(() => _postData = updatedPost);
-                  },
-                  onDelete: () => Navigator.pop(context),
+    // 👇 Wrap everything in WillPopScope to catch back navigation
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, true); // signal refresh
+        return false; // prevent automatic pop (we already did it)
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Post'), elevation: 1),
+        body: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchPost,
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(), // disable bounce/glow
+                  padding: const EdgeInsets.all(16.0),
+                  child: PostContent(
+                    postData: _postData!,
+                    loggedInUserId: _loggedInUserId,
+                    onUpdate: (updatedPost) {
+                      setState(() => _postData = updatedPost);
+                    },
+                    // 👇 return true on delete to trigger refresh in ProfileScreen
+                    onDelete: () => Navigator.pop(context, true),
+                  ),
                 ),
               ),
             ),
-          ),
-          CommentInput(
-            controller: _commentController,
-            postId: _postData!['post_id'],
-            onCommentAdded: _fetchPost,
-          ),
-        ],
+            CommentInput(
+              controller: _commentController,
+              postId: _postData!['post_id'],
+              onCommentAdded: _fetchPost,
+            ),
+          ],
+        ),
       ),
     );
   }

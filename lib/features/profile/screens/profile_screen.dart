@@ -1,5 +1,5 @@
-// lib/features/profile/screens/profile_screen.dart
 import 'package:demo/features/posts/screens/create_post_screen.dart';
+import 'package:demo/features/posts/screens/post_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/user_profile.dart';
@@ -57,13 +57,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final profile = await fetchUserProfile(widget.userId);
-
-      setState(() {
-        _userProfile = profile;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+          _isLoading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,7 +72,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_userProfile == null || _isFollowLoading) return;
 
     setState(() => _isFollowLoading = true);
-
     final response = await toggleFollow(targetUserId: widget.userId);
 
     if (response.success && response.isFollowing != null) {
@@ -101,19 +101,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _onSharePostTapped() async {
     if (widget.onSharePostTapped != null) {
       widget.onSharePostTapped!();
-    } else {
-      final newPost = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-      );
+      return;
+    }
 
-      if (newPost == true) {
-        setState(() {
-          _userProfile = _userProfile!.copyWith(
-            postsCount: _userProfile!.postsCount + 1,
-          );
-        });
-      }
+    final newPost = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+    );
+
+    if (newPost == true && mounted) {
+      await _loadProfile(); // refresh after creating post
+    }
+  }
+
+  Future<void> _openPostScreen(String postId) async {
+    final shouldRefresh = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => PostScreen(postId: postId)),
+    );
+
+    if (shouldRefresh == true && mounted) {
+      await _loadProfile(); // refresh after returning
     }
   }
 
@@ -130,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : null,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16.0), // added right margin
+            padding: const EdgeInsets.only(right: 16.0),
             child: IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'Create Post',
@@ -144,19 +152,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _userProfile == null
           ? _buildErrorState()
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProfileHeader(),
-                  _buildUsernameBioSection(),
-                  const SizedBox(height: 24),
-                  UserPostsWidget(
-                    profileUserId: _userProfile!.userId,
-                    loggedInUserId: _loggedInUserId,
-                    onSharePostTapped: _onSharePostTapped,
-                  ),
-                ],
+          : RefreshIndicator(
+              onRefresh: _loadProfile,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProfileHeader(),
+                    _buildUsernameBioSection(),
+                    const SizedBox(height: 24),
+                    UserPostsWidget(
+                      profileUserId: _userProfile!.userId,
+                      loggedInUserId: _loggedInUserId,
+                      onPostTapped: _openPostScreen, // 👈 added
+                      onSharePostTapped: _onSharePostTapped,
+                    ),
+                  ],
+                ),
               ),
             ),
     );
@@ -251,11 +264,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           if (_loggedInUserId == _userProfile!.userId)
             GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final updated = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(builder: (_) => const UpdateProfile()),
                 );
+
+                if (updated == true && mounted) {
+                  await _loadProfile();
+                }
               },
               child: const Text(
                 'Update Profile',

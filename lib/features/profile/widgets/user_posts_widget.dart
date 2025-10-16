@@ -7,12 +7,14 @@ class UserPostsWidget extends StatefulWidget {
   final String profileUserId;
   final String? loggedInUserId;
   final VoidCallback? onSharePostTapped;
+  final void Function(String postId)? onPostTapped; // ✅ new callback
 
   const UserPostsWidget({
     Key? key,
     required this.profileUserId,
     required this.loggedInUserId,
     this.onSharePostTapped,
+    this.onPostTapped, // ✅ initialize
   }) : super(key: key);
 
   @override
@@ -38,9 +40,7 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
   }
 
   Future<void> _loadUserPosts() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await getUserPosts(userId: widget.profileUserId);
@@ -56,11 +56,16 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
     }
   }
 
-  void _navigateToPostScreen(String postId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => PostScreen(postId: postId)),
-    );
+  void _navigateToPostScreen(String postId) async {
+    if (widget.onPostTapped != null) {
+      widget.onPostTapped!(postId); // ✅ notify parent
+    } else {
+      // fallback: navigate to post screen
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PostScreen(postId: postId)),
+      );
+    }
   }
 
   @override
@@ -77,7 +82,7 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // keeps it centered tightly
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
@@ -110,10 +115,7 @@ class _UserPostsWidgetState extends State<UserPostsWidget> {
       itemBuilder: (context, index) {
         final post = _userPosts![index];
         return GestureDetector(
-          onTap: () {
-            // Navigate to post detail screen with the post ID
-            _navigateToPostScreen(post.postId);
-          },
+          onTap: () => _navigateToPostScreen(post.postId),
           child: Container(
             decoration: BoxDecoration(color: Colors.grey[300]),
             child: post.mediaUrl != null
