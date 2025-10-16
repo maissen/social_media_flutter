@@ -1,7 +1,35 @@
+import 'dart:io';
 import 'package:demo/features/splash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:window_size/window_size.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows) {
+    const double windowWidth = 500.0;
+    const double windowHeight = 932.0;
+
+    // Set window title
+    setWindowTitle('BrainHub - Where you inspire');
+
+    // Fix the window size (unresizable)
+    setWindowMinSize(const Size(windowWidth, windowHeight));
+    setWindowMaxSize(const Size(windowWidth, windowHeight));
+
+    // Center the window on the primary screen
+    final screen = await getCurrentScreen();
+    if (screen != null) {
+      final screenFrame = screen.frame;
+      final double left =
+          screenFrame.left + (screenFrame.width - windowWidth) / 2;
+      final double top =
+          screenFrame.top + (screenFrame.height - windowHeight) / 2;
+
+      setWindowFrame(Rect.fromLTWH(left, top, windowWidth, windowHeight));
+    }
+  }
+
   runApp(const MyApp());
 }
 
@@ -15,13 +43,11 @@ class NoGlowBounceScrollBehavior extends ScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    // Removes the glow effect when overscrolling
     return child;
   }
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    // Adds iOS-style bounce effect to all scrollables
     return const BouncingScrollPhysics();
   }
 }
@@ -37,9 +63,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      scrollBehavior: const NoGlowBounceScrollBehavior(), // 👈 global behavior
-      home:
-          const AuthCheckScreen(), // 👈 Changed from LoginScreen to AuthCheckScreen
+      scrollBehavior: const NoGlowBounceScrollBehavior(),
+      home: const AuthCheckScreen(),
     );
   }
 }
