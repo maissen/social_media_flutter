@@ -110,7 +110,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
               const Spacer(flex: 4),
               // Spinner at the very bottom
               const Padding(
-                padding: EdgeInsets.only(bottom: 40),
+                padding: EdgeInsets.only(bottom: 110),
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
