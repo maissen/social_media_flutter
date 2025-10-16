@@ -1,7 +1,8 @@
 import 'package:demo/features/auth/screens/login_screen.dart';
-import 'package:demo/features/main_app_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../utils/auth_helpers.dart';
+import 'package:demo/features/main_app_screen.dart';
 
 class AuthCheckScreen extends StatefulWidget {
   const AuthCheckScreen({super.key});
@@ -30,7 +31,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
-
     _checkAuth();
   }
 
@@ -39,14 +39,35 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
     await Future.delayed(const Duration(seconds: 3));
 
     final isValid = await isTokenValid();
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLogin = prefs.getBool('is_first_login') ?? false;
 
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => isValid ? const MainAppScreen() : const LoginScreen(),
-        ),
-      );
+      if (isValid) {
+        if (isFirstLogin) {
+          // Mark as not first login anymore
+          await prefs.setBool('is_first_login', false);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const MainAppScreen(initialIndex: 1), // Profile
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const MainAppScreen(initialIndex: 0), // Feed
+            ),
+          );
+        }
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     }
   }
 
@@ -74,7 +95,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
           child: Column(
             children: [
               const Spacer(flex: 3),
-              // Logo with border radius and box shadow
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
@@ -98,7 +118,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              // BrainHub text
               const Text(
                 'BrainHub',
                 style: TextStyle(
@@ -108,7 +127,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen>
                 ),
               ),
               const Spacer(flex: 4),
-              // Spinner at the very bottom
               const Padding(
                 padding: EdgeInsets.only(bottom: 110),
                 child: CircularProgressIndicator(

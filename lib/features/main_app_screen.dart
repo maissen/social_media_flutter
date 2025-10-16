@@ -8,20 +8,23 @@ import '../features/profile/screens/search_users_screen.dart';
 import '../features/feed/screens/explore_screen.dart';
 
 class MainAppScreen extends StatefulWidget {
-  const MainAppScreen({super.key});
+  final int initialIndex; // 0 = Feed, 1 = Profile
+
+  const MainAppScreen({super.key, this.initialIndex = 0});
 
   @override
   State createState() => _MainAppScreenState();
 }
 
-class _MainAppScreenState extends State {
-  int _currentIndex = 1;
+class _MainAppScreenState extends State<MainAppScreen> {
+  late int _currentIndex;
   String? _loggedInUserId;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _loadLoggedInUserId();
   }
 
@@ -244,9 +247,8 @@ class _MainAppScreenState extends State {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: (isSelected ? Colors.deepPurple : Colors.blue).withOpacity(
-                0.5,
-              ),
+              color: (isSelected ? Colors.deepPurple : Colors.blue)
+                  .withOpacity(0.5),
               blurRadius: isSelected ? 20 : 15,
               offset: const Offset(0, 5),
             ),
