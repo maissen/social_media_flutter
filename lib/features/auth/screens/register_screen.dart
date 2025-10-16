@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../utils/auth_helpers.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -97,6 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -133,6 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               obscureText: obscureText,
               keyboardType: keyboardType,
+              inputFormatters: inputFormatters,
             ),
           ),
         ),
@@ -242,11 +245,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Username Field
+              // Username Field (max 15 chars, no spaces)
               _buildGlassTextField(
                 controller: usernameController,
                 label: 'Username',
                 icon: Icons.person_rounded,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  LengthLimitingTextInputFormatter(15),
+                ],
               ),
               const SizedBox(height: 20),
 
