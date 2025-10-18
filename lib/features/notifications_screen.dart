@@ -76,7 +76,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications'), elevation: 0),
+      backgroundColor: Colors.white, // keep screen background white
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white, // keep AppBar background white
+        leading: IconButton(
+          icon: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Colors.deepPurple, Colors.blue],
+            ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+            child: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Colors.deepPurple, Colors.blue],
+          ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+          child: const Text(
+            'Notifications',
+            style: TextStyle(
+              color: Colors.white, // overridden by gradient
+            ),
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notifications.isEmpty
