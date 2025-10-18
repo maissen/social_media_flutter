@@ -46,7 +46,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
+          shaderCallback: (bounds) => const LinearGradient(
             colors: [Colors.deepPurple, Colors.blue],
           ).createShader(bounds),
           child: const Text(
@@ -54,13 +54,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: Colors.white, // required, overridden by shader
+              color: Colors.white, // must be white for gradient
             ),
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+        foregroundColor: Colors.black, // keeps icons visible
+        elevation: 0, // clean, flat design
+        centerTitle: false,
       ),
       body: RefreshIndicator(
         onRefresh: _loadExploreFeed,
