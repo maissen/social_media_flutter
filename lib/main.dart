@@ -1,34 +1,15 @@
-import 'dart:io';
 import 'package:demo/features/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:window_size/window_size.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+// Conditional imports
+import 'main_desktop.dart' if (dart.library.html) 'main_web.dart' as platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Platform.isWindows) {
-    const double windowWidth = 500.0;
-    const double windowHeight = 932.0;
-
-    // Set window title
-    setWindowTitle('BrainHub - Where you inspire');
-
-    // Fix the window size (unresizable)
-    setWindowMinSize(const Size(windowWidth, windowHeight));
-    setWindowMaxSize(const Size(windowWidth, windowHeight));
-
-    // Center the window on the primary screen
-    final screen = await getCurrentScreen();
-    if (screen != null) {
-      final screenFrame = screen.frame;
-      final double left =
-          screenFrame.left + (screenFrame.width - windowWidth) / 2;
-      final double top =
-          screenFrame.top + (screenFrame.height - windowHeight) / 2;
-
-      setWindowFrame(Rect.fromLTWH(left, top, windowWidth, windowHeight));
-    }
-  }
+  // Call platform-specific setup
+  await platform.setupPlatform();
 
   runApp(const MyApp());
 }

@@ -129,7 +129,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [Colors.deepPurple, Colors.blue],
+          ).createShader(bounds),
+          child: const Text(
+            'Profile',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Colors.white, // required, overridden by shader
+            ),
+          ),
+        ),
         leading: widget.showTopBanner
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -140,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: IconButton(
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add, color: Colors.deepPurple),
               tooltip: 'Create Post',
               onPressed: _onSharePostTapped,
             ),

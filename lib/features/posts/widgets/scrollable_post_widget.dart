@@ -329,7 +329,9 @@ class _PostWidgetState extends State<PostWidget> {
                       },
                       child: Icon(
                         _isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: _isLiked ? Colors.red : Colors.black,
+                        color: _isLiked
+                            ? Colors.deepPurpleAccent
+                            : Colors.black,
                       ),
                     ),
                     const SizedBox(width: 6),

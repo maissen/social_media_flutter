@@ -125,15 +125,29 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor:
+          Colors.deepPurple.shade50, // subtle background matching login
       appBar: AppBar(
-        title: const Text('Feed'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.white.withOpacity(
+          0.8,
+        ), // semi-transparent for glass effect
         elevation: 0,
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [Colors.deepPurple, Colors.blue],
+          ).createShader(bounds),
+          child: const Text(
+            'Feed',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Colors.white, // required, overridden by shader
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications),
+            icon: Icon(Icons.notifications, color: Colors.blue),
             onPressed: () {
               Navigator.push(
                 context,
@@ -142,15 +156,16 @@ class _FeedScreenState extends State<FeedScreen> {
             },
             tooltip: 'Notifications',
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: _logout,
-              tooltip: 'Logout',
-            ),
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.deepPurple),
+            onPressed: _logout,
+            tooltip: 'Logout',
           ),
+          const SizedBox(width: 8),
         ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+        ),
       ),
       body: bodyContent,
     );

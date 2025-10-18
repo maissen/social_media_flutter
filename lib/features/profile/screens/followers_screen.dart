@@ -38,12 +38,37 @@ class _FollowersScreenState extends State<FollowersScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Colors.deepPurple, Colors.blue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ).createShader(bounds),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white, // keep white so the gradient shows correctly
+            ),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Followers'),
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Colors.deepPurple, Colors.blue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: const Text(
+            'Followers',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Colors.white, // must be white for gradient mask
+            ),
+          ),
+        ),
         centerTitle: true,
       ),
+
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _users.isEmpty

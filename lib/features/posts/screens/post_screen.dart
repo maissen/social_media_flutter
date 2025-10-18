@@ -121,7 +121,39 @@ class _PostScreenState extends State<PostScreen> {
         return false; // prevent automatic pop (we already did it)
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Post'), elevation: 1),
+        appBar: AppBar(
+          elevation: 1,
+          leading: IconButton(
+            icon: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Colors.deepPurple, Colors.blue],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white, // keep white to let the gradient show
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Colors.deepPurple, Colors.blue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ).createShader(bounds),
+            child: const Text(
+              'Post insights',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Colors.white, // must be white for gradient to show
+              ),
+            ),
+          ),
+        ),
+
         body: Column(
           children: [
             Expanded(
@@ -136,7 +168,6 @@ class _PostScreenState extends State<PostScreen> {
                     onUpdate: (updatedPost) {
                       setState(() => _postData = updatedPost);
                     },
-                    // 👇 return true on delete to trigger refresh in ProfileScreen
                     onDelete: () => Navigator.pop(context, true),
                   ),
                 ),
@@ -747,7 +778,9 @@ class _LikeButtonState extends State<LikeButton> {
                   )
                 : Icon(
                     isPostLikedByMe ? Icons.favorite : Icons.favorite_border,
-                    color: isPostLikedByMe ? Colors.red : Colors.grey[700],
+                    color: isPostLikedByMe
+                        ? Colors.deepPurpleAccent
+                        : Colors.grey[700],
                     size: 24,
                   ),
           ),
@@ -825,7 +858,7 @@ class CommentInput extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.send, color: Colors.blue),
+              icon: const Icon(Icons.send, color: Colors.deepPurple),
               onPressed: () async {
                 final content = controller.text.trim();
                 if (content.isEmpty) return;

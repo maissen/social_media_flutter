@@ -195,7 +195,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                         ? Icons.favorite
                                         : Icons.favorite_border,
                                     color: likedByUser
-                                        ? Colors.red
+                                        ? Colors.blue
                                         : Colors.black,
                                     size: 20,
                                   ),
