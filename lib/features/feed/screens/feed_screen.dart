@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:demo/features/notifications_screen.dart';
 import 'package:demo/features/posts/widgets/scrollable_post_widget.dart';
 import 'package:demo/utils/feed_helpers.dart';
@@ -99,8 +100,7 @@ class _FeedScreenState extends State<FeedScreen> {
       bodyContent = RefreshIndicator(
         onRefresh: _loadUserFeed,
         child: ListView.builder(
-          physics:
-              const AlwaysScrollableScrollPhysics(), // required for pull-to-refresh when list is short
+          physics: const AlwaysScrollableScrollPhysics(),
           itemCount: userFeedPosts.length,
           itemBuilder: (context, index) {
             final post = userFeedPosts[index];
@@ -125,45 +125,51 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white, // pure white background
-      appBar: AppBar(
-        backgroundColor: Colors.white.withOpacity(
-          0.8,
-        ), // keep subtle translucent AppBar
-        elevation: 0,
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.deepPurple, Colors.blue],
-          ).createShader(bounds),
-          child: const Text(
-            'Feed',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              color: Colors.white, // required, overridden by shader
+      backgroundColor: Colors.white,
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AppBar(
+              backgroundColor: Colors.white.withOpacity(0.7),
+              elevation: 0,
+              title: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Colors.deepPurple, Colors.blue],
+                ).createShader(bounds),
+                child: const Text(
+                  'Feed',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.notifications, color: Colors.blue),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                  tooltip: 'Notifications',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.blue),
+                  onPressed: _logout,
+                  tooltip: 'Logout',
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.blue),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-            tooltip: 'Notifications',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.blue),
-            onPressed: _logout,
-            tooltip: 'Logout',
-          ),
-          const SizedBox(width: 8),
-        ],
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
       ),
       body: bodyContent,
