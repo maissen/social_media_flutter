@@ -156,7 +156,7 @@ class _FeedScreenState extends State<FeedScreen> {
             tooltip: 'Notifications',
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.deepPurple),
+            icon: const Icon(Icons.logout, color: Colors.blue),
             onPressed: _logout,
             tooltip: 'Logout',
           ),
