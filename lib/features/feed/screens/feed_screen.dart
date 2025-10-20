@@ -163,22 +163,15 @@ class _FeedScreenState extends State<FeedScreen> {
                 IconButton(
                   icon: const Icon(Icons.message, color: Colors.blue),
                   onPressed: () {
-                    if (userId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ConversationsScreen(
-                            loggedUserId: int.parse(
-                              userId!,
-                            ), // convert String -> int
-                          ),
-                        ),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConversationsScreen(),
+                      ),
+                    );
                   },
                   tooltip: 'Messages',
                 ),
-
                 IconButton(
                   icon: const Icon(Icons.notifications, color: Colors.blue),
                   onPressed: () {
@@ -202,6 +195,7 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ),
       ),
+
       body: bodyContent,
     );
   }
