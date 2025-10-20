@@ -107,7 +107,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void initState() {
     super.initState();
     _fetchRecipientUser();
-    _fetchMessages();
+    // _fetchMessages();
     _initializeConversation();
   }
 
@@ -384,7 +384,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       });
 
       _channel?.sink.add(payload);
-      await _fetchMessages();
+      // await _fetchMessages();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
