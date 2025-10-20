@@ -6,7 +6,6 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/posts/screens/create_post_screen.dart';
 import '../features/profile/screens/search_users_screen.dart';
 import '../features/feed/screens/explore_screen.dart';
-import 'package:demo'
 
 class MainAppScreen extends StatefulWidget {
   final int initialIndex; // 0 = Feed, 1 = Profile
@@ -248,8 +247,9 @@ class _MainAppScreenState extends State<MainAppScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: (isSelected ? Colors.deepPurple : Colors.blue)
-                  .withOpacity(0.5),
+              color: (isSelected ? Colors.deepPurple : Colors.blue).withOpacity(
+                0.5,
+              ),
               blurRadius: isSelected ? 20 : 15,
               offset: const Offset(0, 5),
             ),

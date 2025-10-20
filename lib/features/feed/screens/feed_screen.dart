@@ -6,7 +6,7 @@ import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../features/chat/chat_screen.dart';
+import 'package:demo/features/chat/conversations_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -20,10 +20,20 @@ class _FeedScreenState extends State<FeedScreen> {
   bool isLoading = true;
   String? errorMessage;
 
+  String? userId; // store logged-in user ID
+
   @override
   void initState() {
     super.initState();
     _loadUserFeed();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userId = prefs.getString('user_id');
+    });
   }
 
   Future<void> _loadUserFeed() async {
@@ -150,6 +160,25 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.message, color: Colors.blue),
+                  onPressed: () {
+                    if (userId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ConversationsScreen(
+                            loggedUserId: int.parse(
+                              userId!,
+                            ), // convert String -> int
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  tooltip: 'Messages',
+                ),
+
                 IconButton(
                   icon: const Icon(Icons.notifications, color: Colors.blue),
                   onPressed: () {
