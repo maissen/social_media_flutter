@@ -1,3 +1,4 @@
+import 'package:demo/features/chat/conversation_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/utils/chat_helpers.dart';
@@ -40,10 +41,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatDetailScreen(
-          recipientId: contact.userId,
-          recipientName: contact.username,
-        ),
+        builder: (context) =>
+            ConversationScreen(recipientUserId: contact.userId.toString()),
       ),
     );
   }
@@ -92,28 +91,6 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-/// --------------------------
-/// Chat Detail Screen (stub)
-/// --------------------------
-class ChatDetailScreen extends StatelessWidget {
-  final int recipientId;
-  final String recipientName;
-
-  const ChatDetailScreen({
-    Key? key,
-    required this.recipientId,
-    required this.recipientName,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(recipientName)),
-      body: Center(child: Text('Chat with $recipientName (ID: $recipientId)')),
     );
   }
 }

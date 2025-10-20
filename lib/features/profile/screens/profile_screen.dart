@@ -332,9 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => ConversationScreen(
-                              currentUserId: _loggedInUserId!,
                               recipientUserId: _userProfile!.userId,
-                              token: token, // Pass token here
                             ),
                           ),
                         );
