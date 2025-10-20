@@ -106,7 +106,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     super.initState();
     _fetchRecipientUser();
     _fetchMessages();
-    _startPeriodicFetch();
     _initializeConversation();
   }
 
@@ -138,15 +137,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     } catch (e) {
       print('Error fetching recipient user: $e');
     }
-  }
-
-  // ---------------------------
-  // Periodic message fetching
-  // ---------------------------
-  void _startPeriodicFetch() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _fetchMessages();
-    });
   }
 
   // ---------------------------
@@ -381,6 +371,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -466,21 +457,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
       ),
       body: Column(
         children: [
-          if (!_isConnected)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.orange[100],
-              child: Row(
-                children: const [
-                  Icon(Icons.warning, color: Colors.orange, size: 16),
-                  SizedBox(width: 8),
-                  Text(
-                    'Connecting to chat server...',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
