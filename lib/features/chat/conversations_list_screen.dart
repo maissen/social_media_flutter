@@ -1,16 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/utils/chat_helpers.dart';
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+/// --------------------------
+/// Conversations / Contacts List Screen
+/// --------------------------
 class ConversationsListScreen extends StatefulWidget {
-  const ConversationsListScreen({
-    Key? key,
-    required this.currentUserId,
-    required this.recipientUserId,
-  }) : super(key: key);
-
-  final String currentUserId;
-  final String recipientUserId;
+  const ConversationsListScreen({Key? key}) : super(key: key);
 
   @override
   State<ConversationsListScreen> createState() =>
@@ -18,33 +15,34 @@ class ConversationsListScreen extends StatefulWidget {
 }
 
 class _ConversationsListScreenState extends State<ConversationsListScreen> {
-  late Future<List<Map<String, dynamic>>> _conversationsFuture;
+  late Future<List<UserProfileSimplified>> _contactsFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadConversations();
+    _loadContacts();
   }
 
-  void _loadConversations() async {
-    _conversationsFuture = _fetchConversations();
+  void _loadContacts() {
+    _contactsFuture = _fetchContacts();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchConversations() async {
+  Future<List<UserProfileSimplified>> _fetchContacts() async {
     final token = await getAccessToken();
-    if (token == null) {
-      throw Exception("User not logged in");
-    }
-    return await getMyConversations(token: token);
+    if (token == null) throw Exception("User not logged in");
+
+    // Await the Future returned by getMyConversations
+    final List<UserProfileSimplified> contacts = await getMyConversations();
+    return contacts;
   }
 
-  void _openConversation(Map<String, dynamic> conversation) {
+  void _openConversation(UserProfileSimplified contact) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatDetailScreen(
-          recipientId: conversation['recipient_id'],
-          recipientName: conversation['recipient_name'] ?? 'Unknown',
+          recipientId: contact.userId,
+          recipientName: contact.username,
         ),
       ),
     );
@@ -53,37 +51,42 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversations')),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _conversationsFuture,
+      appBar: AppBar(title: const Text('Chats')),
+      body: FutureBuilder<List<UserProfileSimplified>>(
+        future: _contactsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No conversations found'));
+            return const Center(child: Text('No contacts found'));
           }
 
-          final conversations = snapshot.data!;
+          final contacts = snapshot.data!;
 
           return ListView.separated(
-            itemCount: conversations.length,
-            separatorBuilder: (context, index) => const Divider(),
+            itemCount: contacts.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final conversation = conversations[index];
+              final contact = contacts[index];
+
               return ListTile(
-                title: Text(conversation['recipient_name'] ?? 'Unknown'),
-                subtitle: Text(
-                  conversation['last_message'] ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                leading: CircleAvatar(
+                  radius: 25,
+                  backgroundImage: contact.profilePicture != null
+                      ? NetworkImage(contact.profilePicture!)
+                      : null,
+                  child: contact.profilePicture == null
+                      ? Text(contact.username[0].toUpperCase())
+                      : null,
                 ),
-                trailing: Text(
-                  conversation['last_message_time'] ?? '',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                onTap: () => _openConversation(conversation),
+                title: Text(contact.username),
+                subtitle: Text(contact.email),
+                trailing: contact.isFollowing
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => _openConversation(contact),
               );
             },
           );
@@ -93,7 +96,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 }
 
-// Example ChatDetailScreen stub
+/// --------------------------
+/// Chat Detail Screen (stub)
+/// --------------------------
 class ChatDetailScreen extends StatelessWidget {
   final int recipientId;
   final String recipientName;

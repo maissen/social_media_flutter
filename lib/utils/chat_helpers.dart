@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:demo/config/constants.dart';
+import 'package:demo/utils/auth_helpers.dart';
 
 /// Base API URL for chat
 final Uri chatApiBase = Uri.parse('${AppConstants.baseApiUrl}/chat');
@@ -65,10 +66,15 @@ Future<List<dynamic>> getConversation({
 
 /// --------------------------
 /// Fetch all conversations of the current user
+/// Automatically uses the saved access token
 /// --------------------------
-Future<List<Map<String, dynamic>>> getMyConversations({
-  required String token,
-}) async {
+Future<List<UserProfileSimplified>> getMyConversations() async {
+  final token = await getAccessToken();
+
+  if (token == null) {
+    throw Exception("No access token found. Please login first.");
+  }
+
   final url = chatApiBase.replace(path: '${chatApiBase.path}/my_conversations');
 
   final response = await http.get(
@@ -80,11 +86,44 @@ Future<List<Map<String, dynamic>>> getMyConversations({
   );
 
   if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    return List<Map<String, dynamic>>.from(data);
+    final List<dynamic> data = jsonDecode(response.body);
+    return data
+        .map(
+          (user) =>
+              UserProfileSimplified.fromJson(user as Map<String, dynamic>),
+        )
+        .toList();
   } else {
     throw Exception(
-      "Failed to fetch my conversations: ${response.statusCode} ${response.body}",
+      "Failed to fetch contacts: ${response.statusCode} ${response.body}",
+    );
+  }
+}
+
+class UserProfileSimplified {
+  final int userId;
+  final String email;
+  final String username;
+  final String? profilePicture;
+  final bool isFollowing;
+
+  UserProfileSimplified({
+    required this.userId,
+    required this.email,
+    required this.username,
+    this.profilePicture,
+    required this.isFollowing,
+  });
+
+  factory UserProfileSimplified.fromJson(Map<String, dynamic> json) {
+    return UserProfileSimplified(
+      userId: json['user_id'] as int,
+      email: json['email'] as String,
+      username: json['username'] as String,
+      profilePicture: (json['profile_picture'] as String).isNotEmpty
+          ? json['profile_picture'] as String
+          : null,
+      isFollowing: json['is_following'] as bool,
     );
   }
 }
