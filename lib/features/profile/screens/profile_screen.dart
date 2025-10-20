@@ -10,7 +10,7 @@ import 'package:demo/features/profile/screens/update_profile.dart';
 import 'package:demo/features/profile/screens/followers_screen.dart';
 import 'package:demo/features/profile/screens/followings_screen.dart';
 import 'package:demo/features/profile/widgets/user_posts_widget.dart';
-import 'package:demo/features/chat/conversations_list_screen.dart'; // Import conversations screen
+import 'package:demo/features/chat/conversations_list_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -113,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (newPost == true && mounted) {
-      await _loadProfile(); // refresh after creating post
+      await _loadProfile();
     }
   }
 
@@ -124,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (shouldRefresh == true && mounted) {
-      await _loadProfile(); // refresh after returning
+      await _loadProfile();
     }
   }
 
@@ -299,56 +299,160 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isFollowLoading ? null : _handleFollowToggle,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _userProfile!.isFollowing
-                          ? Colors.grey
-                          : Colors.blue,
-                    ),
-                    child: _isFollowLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: _userProfile!.isFollowing
+                          ? null
+                          : LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Colors.deepPurple, Colors.blue],
                             ),
-                          )
-                        : Text(
-                            _userProfile!.isFollowing ? 'Unfollow' : 'Follow',
-                          ),
+                      color: _userProfile!.isFollowing
+                          ? Colors.grey.shade200
+                          : null,
+                      borderRadius: BorderRadius.circular(12),
+                      border: _userProfile!.isFollowing
+                          ? Border.all(color: Colors.grey.shade300, width: 1.5)
+                          : null,
+                      boxShadow: _userProfile!.isFollowing
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _isFollowLoading ? null : _handleFollowToggle,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: _isFollowLoading
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _userProfile!.isFollowing
+                                      ? Colors.grey.shade600
+                                      : Colors.white,
+                                ),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _userProfile!.isFollowing
+                                      ? Icons.person_remove_rounded
+                                      : Icons.person_add_rounded,
+                                  size: 18,
+                                  color: _userProfile!.isFollowing
+                                      ? Colors.grey.shade700
+                                      : Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _userProfile!.isFollowing
+                                      ? 'Unfollow'
+                                      : 'Follow',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: _userProfile!.isFollowing
+                                        ? Colors.grey.shade700
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final token = await getAccessToken();
-                      if (_loggedInUserId != null && token != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ConversationScreen(
-                              recipientUserId: _userProfile!.userId,
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.blue.shade400, Colors.blue.shade600],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final token = await getAccessToken();
+                        if (_loggedInUserId != null && token != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ConversationScreen(
+                                recipientUserId: _userProfile!.userId,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'You need to be logged in to chat.',
+                              ),
+                              backgroundColor: Colors.red.shade400,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(
+                            Icons.chat_bubble_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Message',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.white,
                             ),
                           ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('You need to be logged in to chat.'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                        ],
+                      ),
                     ),
-                    child: const Text('Message'),
                   ),
                 ),
               ],
