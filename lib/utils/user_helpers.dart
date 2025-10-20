@@ -338,3 +338,81 @@ Future<NotificationsResponse> fetchNotifications({
     );
   }
 }
+
+class GetUserResponse {
+  final bool success;
+  final String message;
+  final Map<String, dynamic>? user;
+
+  GetUserResponse({required this.success, required this.message, this.user});
+}
+
+Future<GetUserResponse> getUserSimplifiedProfile({
+  required String userId,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return GetUserResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      user: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/get-user?user_id=$userId',
+  );
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      final data = body['data'];
+
+      Map<String, dynamic>? userData;
+      if (data is List && data.isNotEmpty) {
+        userData = Map<String, dynamic>.from(data.first);
+      } else if (data is Map<String, dynamic>) {
+        userData = data;
+      }
+
+      if (userData == null) {
+        return GetUserResponse(
+          success: false,
+          message: 'No user data found',
+          user: null,
+        );
+      }
+
+      print("user is fetched, username = ${data.username}");
+
+      return GetUserResponse(
+        success: true,
+        message: body['message'] ?? 'User retrieved successfully',
+        user: userData,
+      );
+    } else {
+      return GetUserResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to fetch user',
+        user: null,
+      );
+    }
+  } catch (e) {
+    return GetUserResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      user: null,
+    );
+  }
+}

@@ -1,41 +1,78 @@
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:demo/utils/auth_helpers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/config/constants.dart';
+import 'package:demo/utils/auth_helpers.dart';
+import 'package:demo/utils/chat_helpers.dart';
 
-/// Base API URL for chat
-final Uri chatApiBase = Uri.parse('${AppConstants.baseApiUrl}/chat');
+// ---------------------------
+// User profile fetcher
+// ---------------------------
+class GetUserResponse {
+  final bool success;
+  final String message;
+  final Map<String, dynamic>? user;
 
-Future<List<dynamic>> getConversation({
-  required String token,
-  required int recipientId,
+  GetUserResponse({required this.success, required this.message, this.user});
+}
+
+Future<GetUserResponse> getUserSimplifiedProfile({
+  required String userId,
 }) async {
-  final url = chatApiBase.replace(
-    path: '${chatApiBase.path}/conversation',
-    queryParameters: {"recipient_id": recipientId.toString()},
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+
+  if (token == null) {
+    return GetUserResponse(
+      success: false,
+      message: 'User not authenticated. Please login.',
+      user: null,
+    );
+  }
+
+  final url = Uri.parse(
+    '${AppConstants.baseApiUrl}/users/get-user?user_id=$userId',
   );
 
-  final response = await http.get(
-    url,
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    return data["messages"] as List<dynamic>? ?? [];
-  } else {
-    throw Exception(
-      "Failed to fetch conversation: ${response.statusCode} ${response.body}",
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      return GetUserResponse(
+        success: true,
+        message: body['message'] ?? 'User retrieved successfully',
+        user: Map<String, dynamic>.from(body['data']),
+      );
+    } else {
+      return GetUserResponse(
+        success: false,
+        message: body['message'] ?? 'Failed to fetch user',
+        user: null,
+      );
+    }
+  } catch (e) {
+    return GetUserResponse(
+      success: false,
+      message: 'An error occurred: $e',
+      user: null,
     );
   }
 }
 
+// ---------------------------
+// Conversation Screen
+// ---------------------------
 class ConversationScreen extends StatefulWidget {
   final String recipientUserId;
 
@@ -50,24 +87,32 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  WebSocketChannel? _channel;
   List<Map<String, dynamic>> _messages = [];
+  Map<String, dynamic>? _recipientUser;
+
+  WebSocketChannel? _channel;
+  Timer? _timer;
+  Timer? _resetTimer;
+
   bool _isConnected = false;
+  bool _isLoading = false;
   bool _isSending = false;
-  String? _myUserId;
   bool _recipientIsOnline = false;
   bool _recipientIsInConversation = false;
-
-  Timer? _resetTimer;
+  String? _myUserId;
 
   @override
   void initState() {
     super.initState();
+    _fetchRecipientUser();
+    _fetchMessages();
+    _startPeriodicFetch();
     _initializeConversation();
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _channel?.sink.close();
     _messageController.dispose();
     _scrollController.dispose();
@@ -75,12 +120,49 @@ class _ConversationScreenState extends State<ConversationScreen> {
     super.dispose();
   }
 
-  Future<void> _initializeConversation() async {
-    await _fetchMessages(); // Fetch messages first
-    await _connectWebSocket(); // Then open WebSocket
+  // ---------------------------
+  // Fetch recipient user info
+  // ---------------------------
+  Future<void> _fetchRecipientUser() async {
+    try {
+      final response = await getUserSimplifiedProfile(
+        userId: widget.recipientUserId,
+      );
+      if (response.success && response.user != null) {
+        setState(() {
+          _recipientUser = response.user;
+        });
+      } else {
+        print('Failed to fetch recipient: ${response.message}');
+      }
+    } catch (e) {
+      print('Error fetching recipient user: $e');
+    }
   }
 
+  // ---------------------------
+  // Periodic message fetching
+  // ---------------------------
+  void _startPeriodicFetch() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _fetchMessages();
+    });
+  }
+
+  // ---------------------------
+  // Initialize conversation
+  // ---------------------------
+  Future<void> _initializeConversation() async {
+    await _fetchMessages();
+    await _connectWebSocket();
+  }
+
+  // ---------------------------
+  // Fetch messages
+  // ---------------------------
   Future<void> _fetchMessages() async {
+    if (_isSending) return;
+
     try {
       final token = await getAccessToken();
       if (token == null) return;
@@ -90,6 +172,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         recipientId: int.parse(widget.recipientUserId),
       );
 
+      if (!mounted) return;
       setState(() {
         _messages = messages
             .map<Map<String, dynamic>>(
@@ -100,6 +183,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               },
             )
             .toList();
+        _isLoading = false;
       });
 
       _scrollToBottom();
@@ -108,6 +192,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  // ---------------------------
+  // Connect WebSocket
+  // ---------------------------
   Future<void> _connectWebSocket() async {
     try {
       final token = await getAccessToken();
@@ -119,9 +206,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       final wsUrl = Uri.parse('ws://localhost:8000/ws?user_id=$_myUserId');
       _channel = WebSocketChannel.connect(wsUrl);
 
-      setState(() {
-        _isConnected = true;
-      });
+      setState(() => _isConnected = true);
 
       _channel!.stream.listen(
         (message) => _handleWebSocketMessage(message),
@@ -139,6 +224,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  // ---------------------------
+  // Decode current user ID
+  // ---------------------------
   Future<String?> _getCurrentUserId(String token) async {
     try {
       final parts = token.split('.');
@@ -156,6 +244,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  // ---------------------------
+  // Handle WebSocket messages
+  // ---------------------------
   void _handleWebSocketMessage(dynamic message) {
     try {
       final data = json.decode(message);
@@ -215,17 +306,21 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  // ---------------------------
+  // Reset "watching you" status
+  // ---------------------------
   void _resetRecipientStatus() {
     _resetTimer?.cancel();
     _resetTimer = Timer(const Duration(seconds: 5), () {
       if (mounted) {
-        setState(() {
-          _recipientIsInConversation = false;
-        });
+        setState(() => _recipientIsInConversation = false);
       }
     });
   }
 
+  // ---------------------------
+  // Scroll to bottom
+  // ---------------------------
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -238,6 +333,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     });
   }
 
+  // ---------------------------
+  // Send message
+  // ---------------------------
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || !_isConnected) return;
 
@@ -247,6 +345,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
     setState(() => _isSending = true);
 
     try {
+      final token = await getAccessToken();
+      if (token == null) throw Exception("No access token found");
+
+      await sendChatMessage(
+        token: token,
+        recipientId: int.parse(widget.recipientUserId),
+        content: content,
+      );
+
       final payload = json.encode({
         'type': 'chat',
         'recipient_id': int.parse(widget.recipientUserId),
@@ -254,6 +361,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       });
 
       _channel?.sink.add(payload);
+      await _fetchMessages();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -265,38 +373,96 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  // ---------------------------
+  // UI
+  // ---------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: Colors.blue,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Left: profile + username
             Row(
               children: [
-                const Text('Conversation'),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage:
+                      _recipientUser != null &&
+                          (_recipientUser!['profile_picture']?.isNotEmpty ??
+                              false)
+                      ? NetworkImage(_recipientUser!['profile_picture'])
+                      : null,
+                  backgroundColor: Colors.grey[400],
+                  child:
+                      _recipientUser != null &&
+                          (_recipientUser!['profile_picture']?.isEmpty ?? true)
+                      ? Text(
+                          (_recipientUser!['username'] ?? 'U')
+                              .substring(0, 1)
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _isConnected ? Colors.green : Colors.red,
-                    shape: BoxShape.circle,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _recipientUser != null
+                          ? _recipientUser!['username'] ??
+                                _recipientUser!['email'] ??
+                                'Conversation'
+                          : 'Conversation',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_recipientIsOnline)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            color: _recipientIsInConversation
+                                ? Colors.greenAccent
+                                : Colors.grey,
+                            size: 8,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _recipientIsInConversation
+                                ? 'Online'
+                                : '${_recipientUser?['username'] ?? 'User'} is watching you',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontStyle: _recipientIsInConversation
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                              color: _recipientIsInConversation
+                                  ? Colors.greenAccent[100]
+                                  : Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ],
             ),
-            if (_recipientIsOnline)
-              Text(
-                _recipientIsInConversation ? 'Active now' : 'Online',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
+            // Right: X button
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ],
         ),
-        backgroundColor: Colors.blue,
       ),
       body: Column(
         children: [
@@ -316,7 +482,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ),
             ),
           Expanded(
-            child: _messages.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _messages.isEmpty
                 ? const Center(
                     child: Text(
                       'No messages yet. Start the conversation!',
