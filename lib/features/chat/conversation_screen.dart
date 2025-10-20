@@ -93,6 +93,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   WebSocketChannel? _channel;
   Timer? _timer;
   Timer? _resetTimer;
+  Timer? _typingTimer;
 
   bool _isConnected = false;
   bool _isLoading = false;
@@ -116,6 +117,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _resetTimer?.cancel();
+    _typingTimer?.cancel();
     super.dispose();
   }
 
@@ -286,8 +288,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
         }
       } else if (data['type'] == 'typing') {
         final from = data['from']?.toString();
+        final status = data['status']?.toString();
+
         if (from == widget.recipientUserId) {
-          setState(() => _recipientIsInConversation = true);
+          setState(() => _recipientIsInConversation = status == 'start');
           _resetRecipientStatus();
         }
       }
@@ -297,7 +301,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   // ---------------------------
-  // Reset "watching you" status
+  // Reset "watching you" / typing status
   // ---------------------------
   void _resetRecipientStatus() {
     _resetTimer?.cancel();
@@ -321,6 +325,34 @@ class _ConversationScreenState extends State<ConversationScreen> {
         );
       }
     });
+  }
+
+  // ---------------------------
+  // Send typing status
+  // ---------------------------
+  void _sendTypingStatus({required bool startTyping}) {
+    if (!_isConnected || _myUserId == null) return;
+
+    final payload = json.encode({
+      'type': 'typing',
+      'recipient_id': int.parse(widget.recipientUserId),
+      'status': startTyping ? 'start' : 'stop',
+    });
+
+    _channel?.sink.add(payload);
+
+    // Reset typing status if user stops typing for 3 seconds
+    _typingTimer?.cancel();
+    if (startTyping) {
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        final stopPayload = json.encode({
+          'type': 'typing',
+          'recipient_id': int.parse(widget.recipientUserId),
+          'status': 'stop',
+        });
+        _channel?.sink.add(stopPayload);
+      });
+    }
   }
 
   // ---------------------------
@@ -421,16 +453,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         children: [
                           Icon(
                             Icons.circle,
-                            color: _recipientIsInConversation
-                                ? Colors.greenAccent
-                                : Colors.grey,
+                            color: const Color.fromARGB(255, 5, 163, 87),
                             size: 8,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             _recipientIsInConversation
-                                ? 'Online'
-                                : '${_recipientUser?['username'] ?? 'User'} is watching you',
+                                ? '${_recipientUser!['username']} is typing...'
+                                : 'Online',
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: _recipientIsInConversation
@@ -537,6 +567,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(),
                     enabled: _isConnected,
+                    onChanged: (text) {
+                      _sendTypingStatus(startTyping: text.isNotEmpty);
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
