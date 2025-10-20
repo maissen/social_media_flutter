@@ -6,6 +6,7 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/posts/screens/create_post_screen.dart';
 import '../features/profile/screens/search_users_screen.dart';
 import '../features/feed/screens/explore_screen.dart';
+import 'package:demo'
 
 class MainAppScreen extends StatefulWidget {
   final int initialIndex; // 0 = Feed, 1 = Profile

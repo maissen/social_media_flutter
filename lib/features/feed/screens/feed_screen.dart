@@ -6,6 +6,7 @@ import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../features/chat/chat_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
