@@ -1,6 +1,7 @@
 import 'package:demo/features/chat/conversation_screen.dart';
 import 'package:demo/features/posts/screens/create_post_screen.dart';
 import 'package:demo/features/posts/screens/post_screen.dart';
+import 'package:demo/utils/auth_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/utils/user_profile.dart';
@@ -324,15 +325,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_loggedInUserId != null) {
+                    onPressed: () async {
+                      final token = await getAccessToken();
+                      if (_loggedInUserId != null && token != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ConversationScreen(
                               currentUserId: _loggedInUserId!,
                               recipientUserId: _userProfile!.userId,
+                              token: token, // Pass token here
                             ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('You need to be logged in to chat.'),
+                            backgroundColor: Colors.red,
                           ),
                         );
                       }
