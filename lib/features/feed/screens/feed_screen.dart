@@ -6,7 +6,7 @@ import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:demo/features/chat/conversations_screen.dart';
+import 'package:demo/features/chat/conversations_list_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -162,11 +162,28 @@ class _FeedScreenState extends State<FeedScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.message, color: Colors.blue),
-                  onPressed: () {
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    final currentUserId = prefs.getString('user_id') ?? '';
+
+                    if (currentUserId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'You must be logged in to view messages',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ConversationsScreen(),
+                        builder: (_) => ConversationsListScreen(
+                          currentUserId: currentUserId,
+                          recipientUserId: '',
+                        ),
                       ),
                     );
                   },
@@ -195,7 +212,6 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ),
       ),
-
       body: bodyContent,
     );
   }

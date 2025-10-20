@@ -1,17 +1,23 @@
 import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/utils/chat_helpers.dart';
 import 'package:flutter/material.dart';
-import 'package:demo/utils/chat_helpers.dart';
-import 'package:demo/utils/auth_helpers.dart';
 
-class ConversationsScreen extends StatefulWidget {
-  const ConversationsScreen({Key? key}) : super(key: key);
+class ConversationsListScreen extends StatefulWidget {
+  const ConversationsListScreen({
+    Key? key,
+    required this.currentUserId,
+    required this.recipientUserId,
+  }) : super(key: key);
+
+  final String currentUserId;
+  final String recipientUserId;
 
   @override
-  State<ConversationsScreen> createState() => _ConversationsScreenState();
+  State<ConversationsListScreen> createState() =>
+      _ConversationsListScreenState();
 }
 
-class _ConversationsScreenState extends State<ConversationsScreen> {
+class _ConversationsListScreenState extends State<ConversationsListScreen> {
   late Future<List<Map<String, dynamic>>> _conversationsFuture;
 
   @override
@@ -33,7 +39,6 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 
   void _openConversation(Map<String, dynamic> conversation) {
-    // Navigate to a detailed conversation screen
     Navigator.push(
       context,
       MaterialPageRoute(

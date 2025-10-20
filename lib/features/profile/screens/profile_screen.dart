@@ -1,3 +1,4 @@
+import 'package:demo/features/chat/conversation_screen.dart';
 import 'package:demo/features/posts/screens/create_post_screen.dart';
 import 'package:demo/features/posts/screens/post_screen.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:demo/features/profile/screens/update_profile.dart';
 import 'package:demo/features/profile/screens/followers_screen.dart';
 import 'package:demo/features/profile/screens/followings_screen.dart';
 import 'package:demo/features/profile/widgets/user_posts_widget.dart';
+import 'package:demo/features/chat/conversations_list_screen.dart'; // Import conversations screen
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onSharePostTapped;
@@ -130,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
+          shaderCallback: (bounds) => const LinearGradient(
             colors: [Colors.deepPurple, Colors.blue],
           ).createShader(bounds),
           child: const Text(
@@ -138,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: Colors.white, // required, overridden by shader
+              color: Colors.white,
             ),
           ),
         ),
@@ -177,7 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     UserPostsWidget(
                       profileUserId: _userProfile!.userId,
                       loggedInUserId: _loggedInUserId,
-                      onPostTapped: _openPostScreen, // 👈 added
+                      onPostTapped: _openPostScreen,
                       onSharePostTapped: _onSharePostTapped,
                     ),
                   ],
@@ -293,28 +295,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           const SizedBox(height: 12),
           if (_loggedInUserId != _userProfile!.userId)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isFollowLoading ? null : _handleFollowToggle,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _userProfile!.isFollowing
-                      ? Colors.grey
-                      : Colors.blue,
-                ),
-                child: _isFollowLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isFollowLoading ? null : _handleFollowToggle,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _userProfile!.isFollowing
+                          ? Colors.grey
+                          : Colors.blue,
+                    ),
+                    child: _isFollowLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            _userProfile!.isFollowing ? 'Unfollow' : 'Follow',
                           ),
-                        ),
-                      )
-                    : Text(_userProfile!.isFollowing ? 'Unfollow' : 'Follow'),
-              ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_loggedInUserId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConversationScreen(
+                              currentUserId: _loggedInUserId!,
+                              recipientUserId: _userProfile!.userId,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                    child: const Text('Message'),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
