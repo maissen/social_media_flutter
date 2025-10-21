@@ -38,7 +38,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
       _notificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
         if (mounted) {
           pushNotifsPopup(context);
-          print("called");
         }
       });
     });
