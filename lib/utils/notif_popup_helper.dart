@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+import 'package:demo/config/constants.dart';
 
 /// Fetch and display notifications as popups
 Future<void> pushNotifsPopup(BuildContext context) async {
@@ -15,7 +16,9 @@ Future<void> pushNotifsPopup(BuildContext context) async {
 
   try {
     // Direct API call
-    final url = Uri.parse('http://localhost:8000/notifications/new/$userId');
+    final url = Uri.parse(
+      '${AppConstants.baseApiUrl}/notifications/new/$userId',
+    );
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
