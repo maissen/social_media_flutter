@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/posts/screens/create_post_screen.dart';
 import '../features/profile/screens/search_users_screen.dart';
 import '../features/feed/screens/explore_screen.dart';
+import 'package:demo/utils/notif_popup_helper.dart';
 
 class MainAppScreen extends StatefulWidget {
   final int initialIndex; // 0 = Feed, 1 = Profile
@@ -20,12 +22,26 @@ class _MainAppScreenState extends State<MainAppScreen> {
   late int _currentIndex;
   String? _loggedInUserId;
   bool _isLoading = true;
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _loadLoggedInUserId();
+
+    // Call notification popup after the first frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      pushNotifsPopup(context);
+
+      // Start periodic timer to call notification every 3 seconds
+      _notificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        if (mounted) {
+          pushNotifsPopup(context);
+          print("called");
+        }
+      });
+    });
   }
 
   Future _loadLoggedInUserId() async {
@@ -44,6 +60,12 @@ class _MainAppScreenState extends State<MainAppScreen> {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
   }
 
   @override

@@ -196,7 +196,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       _myUserId = await _getCurrentUserId(token);
       if (_myUserId == null) return;
 
-      final wsUrl = Uri.parse('ws://79.137.34.134:8000/ws?user_id=$_myUserId');
+      final wsUrl = Uri.parse('ws://localhost:8000/ws?user_id=$_myUserId');
       _channel = WebSocketChannel.connect(wsUrl);
 
       setState(() => _isConnected = true);
