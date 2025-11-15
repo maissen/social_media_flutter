@@ -7,6 +7,67 @@ import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
 import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+// Widget to display post categories
+class PostCategories extends StatelessWidget {
+  final List<dynamic>? categoryObjects;
+
+  PostCategories({Key? key, this.categoryObjects}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (categoryObjects == null || categoryObjects!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: categoryObjects!.length,
+        itemBuilder: (context, index) {
+          final category = categoryObjects![index];
+
+          // Extract the category name from [id, name] format
+          String categoryName = 'Category';
+
+          if (category is List && category.length > 1) {
+            // Format: [16, "🤖 Artificial Intelligence"]
+            categoryName = category[1].toString();
+          } else if (category is Map<String, dynamic>) {
+            // Fallback for map format
+            categoryName =
+                category['category_name'] ?? category['name'] ?? 'Category';
+          } else {
+            // Fallback for other formats
+            categoryName = category.toString();
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+              border: Border.all(color: Colors.grey),
+            ),
+            child: Center(
+              child: Text(
+                categoryName,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 // Global variables accessible anywhere in this file
 late GetPostResponse postResponse;
 bool isPostLikedByMe = false;
@@ -114,11 +175,10 @@ class _PostScreenState extends State<PostScreen> {
       return const Scaffold(body: Center(child: Text('Post not found')));
     }
 
-    // 👇 Wrap everything in WillPopScope to catch back navigation
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pop(context, true); // signal refresh
-        return false; // prevent automatic pop (we already did it)
+        Navigator.pop(context, true);
+        return false;
       },
       child: Scaffold(
         appBar: AppBar(
@@ -130,10 +190,7 @@ class _PostScreenState extends State<PostScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ).createShader(bounds),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Colors.white, // keep white to let the gradient show
-              ),
+              child: const Icon(Icons.arrow_back, color: Colors.white),
             ),
             onPressed: () => Navigator.pop(context, true),
           ),
@@ -148,19 +205,18 @@ class _PostScreenState extends State<PostScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Colors.white, // must be white for gradient to show
+                color: Colors.white,
               ),
             ),
           ),
         ),
-
         body: Column(
           children: [
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _fetchPost,
                 child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(), // disable bounce/glow
+                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.all(16.0),
                   child: PostContent(
                     postData: _postData!,
@@ -211,6 +267,8 @@ class PostContent extends StatelessWidget {
           onDelete: onDelete,
         ),
         const SizedBox(height: 16),
+        PostCategories(categoryObjects: postData['category_objects']),
+        const SizedBox(height: 12),
         PostMedia(mediaUrl: postData['media_url']),
         const SizedBox(height: 16),
         if (postData['content'] != null &&
@@ -617,7 +675,7 @@ class PostActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start, // 👈 aligns text nicely
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -674,7 +732,6 @@ class _LikeButtonState extends State<LikeButton> {
   @override
   void initState() {
     super.initState();
-    // Initialize from the global postResponse
     if (postResponse.post != null) {
       likesCount = postResponse.post!['likes_nbr'] ?? 0;
     }
@@ -683,7 +740,6 @@ class _LikeButtonState extends State<LikeButton> {
   @override
   void didUpdateWidget(LikeButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update state if postResponse changes
     if (postResponse.post != null) {
       if (likesCount != (postResponse.post!['likes_nbr'] ?? 0)) {
         setState(() {
@@ -704,43 +760,31 @@ class _LikeButtonState extends State<LikeButton> {
       bool newIsLiked;
       int newLikesCount = likesCount;
 
-      // Case 1: API returns 'is_liked' (dislike response)
       if (response.data!.containsKey('is_liked')) {
         newIsLiked = response.data!['is_liked'] == true;
-        // Adjust likes count
         if (newIsLiked && !isPostLikedByMe) {
-          newLikesCount += 1; // user just liked the post
+          newLikesCount += 1;
         } else if (!newIsLiked && isPostLikedByMe) {
-          newLikesCount -= 1; // user just unliked the post
+          newLikesCount -= 1;
         }
-      }
-      // Case 2: API returns the whole post (like response)
-      else if (response.data!.containsKey('is_liked_by_me') &&
+      } else if (response.data!.containsKey('is_liked_by_me') &&
           response.data!.containsKey('likes_nbr')) {
         newIsLiked = response.data!['is_liked_by_me'] == true;
-        newLikesCount += 1; // user just liked the post
-      }
-      // Fallback
-      else {
+        newLikesCount += 1;
+      } else {
         newIsLiked = isPostLikedByMe;
       }
 
-      // Update global variable
       isPostLikedByMe = newIsLiked;
 
       setState(() {
         likesCount = newLikesCount;
       });
 
-      // Update global postResponse
       if (postResponse.post != null) {
         postResponse.post!['is_liked_by_me'] = newIsLiked;
         postResponse.post!['likes_nbr'] = newLikesCount;
       }
-
-      print(
-        'Like/Dislike API response: $newIsLiked, likesCount: $newLikesCount',
-      );
     } else {
       if (mounted) {
         ScaffoldMessenger.of(
