@@ -15,9 +15,10 @@ class CreatePostResponse {
 Future<CreatePostResponse> createPost({
   String? content,
   File? mediaFile,
+  required List<String> categoryIds, // <-- list of string IDs
 }) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token'); // Get token
+  final token = prefs.getString('access_token');
 
   if (token == null) {
     return CreatePostResponse(
@@ -30,16 +31,18 @@ Future<CreatePostResponse> createPost({
   final url = Uri.parse('${AppConstants.baseApiUrl}/posts/create');
 
   try {
-    // Use MultipartRequest to handle file upload
     final request = http.MultipartRequest('POST', url)
       ..headers['Authorization'] = 'Bearer $token';
 
-    // Add text field if provided
+    // Add content
     if (content != null && content.isNotEmpty) {
       request.fields['content'] = content;
     }
 
-    // Add media file if provided
+    // ⭐ Send categories as ONE JSON LIST
+    request.fields['categories'] = jsonEncode(categoryIds);
+
+    // Add media
     if (mediaFile != null && await mediaFile.exists()) {
       final mediaStream = http.MultipartFile.fromBytes(
         'media_file',
