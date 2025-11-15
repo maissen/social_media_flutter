@@ -12,6 +12,8 @@ class Post {
   final int likesNbr;
   final int commentsNbr;
   final bool isLikedByMe;
+  final List<dynamic> categories;
+  final List<List<dynamic>>? categoryObjects; // Add this
 
   Post({
     required this.postId,
@@ -22,6 +24,8 @@ class Post {
     required this.likesNbr,
     required this.commentsNbr,
     required this.isLikedByMe,
+    required this.categories,
+    this.categoryObjects, // Add this
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
@@ -34,7 +38,21 @@ class Post {
       likesNbr: json['likes_nbr'],
       commentsNbr: json['comments_nbr'],
       isLikedByMe: json['is_liked_by_me'],
+      categories: json['categories'] ?? [],
+      categoryObjects: json['category_objects'] != null
+          ? List<List<dynamic>>.from(
+              (json['category_objects'] as List).map(
+                (item) => List<dynamic>.from(item),
+              ),
+            )
+          : null, // Add this
     );
+  }
+
+  // Helper method to get category names
+  List<String> getCategoryNames() {
+    if (categoryObjects == null || categoryObjects!.isEmpty) return [];
+    return categoryObjects!.map((cat) => cat[1] as String).toList();
   }
 }
 
@@ -58,6 +76,7 @@ Future<List<Post>> fetchUserFeed() async {
       List<Post> posts = (body['data'] as List)
           .map((postJson) => Post.fromJson(postJson))
           .toList();
+
       return posts;
     } else {
       throw Exception(body['message'] ?? 'Failed to fetch user feed');

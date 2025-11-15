@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:demo/features/notifications_screen.dart';
 import 'package:demo/features/posts/widgets/scrollable_post_widget.dart';
 import 'package:demo/utils/feed_helpers.dart';
-import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,8 +18,7 @@ class _FeedScreenState extends State<FeedScreen> {
   List<Post> userFeedPosts = [];
   bool isLoading = true;
   String? errorMessage;
-
-  String? userId; // store logged-in user ID
+  String? userId;
 
   @override
   void initState() {
@@ -99,12 +97,42 @@ class _FeedScreenState extends State<FeedScreen> {
     if (isLoading) {
       bodyContent = const Center(child: CircularProgressIndicator());
     } else if (errorMessage != null) {
-      bodyContent = Center(child: Text(errorMessage!));
+      bodyContent = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              errorMessage!,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadUserFeed,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
     } else if (userFeedPosts.isEmpty) {
-      bodyContent = const Center(
-        child: Text(
-          'No posts available.',
-          style: TextStyle(fontSize: 18, color: Colors.grey),
+      bodyContent = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.feed_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'No posts available.',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Follow some users to see their posts here!',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ],
         ),
       );
     } else {
@@ -115,7 +143,18 @@ class _FeedScreenState extends State<FeedScreen> {
           itemCount: userFeedPosts.length,
           itemBuilder: (context, index) {
             final post = userFeedPosts[index];
-            return PostWidget(postId: post.postId);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pass the post object with categories to PostWidget
+                PostWidget(
+                  postId: post.postId,
+                  categoryObjects: post.categoryObjects,
+                ),
+                Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+                const SizedBox(height: 12),
+              ],
+            );
           },
         ),
       );
@@ -128,7 +167,7 @@ class _FeedScreenState extends State<FeedScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: SizedBox(
-            height: MediaQuery.of(context).size.height,
+            height: MediaQuery.of(context).size.height - 100,
             child: bodyContent,
           ),
         ),

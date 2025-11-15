@@ -14,12 +14,14 @@ class PostWidget extends StatefulWidget {
   final int postId;
   final Function(String postId)? onDelete;
   final Function(String postId)? onUpdate;
+  final List<List<dynamic>>? categoryObjects; // Add this parameter
 
   const PostWidget({
     Key? key,
     required this.postId,
     this.onDelete,
     this.onUpdate,
+    this.categoryObjects, // Add this
   }) : super(key: key);
 
   @override
@@ -203,6 +205,48 @@ class _PostWidgetState extends State<PostWidget> {
     );
   }
 
+  // Helper method to build category chips
+  Widget _buildCategoryChips() {
+    final categories = widget.categoryObjects;
+
+    if (categories == null || categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final categoryNames = categories.map((cat) => cat[1] as String).toList();
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: categoryNames.length,
+        itemBuilder: (context, index) {
+          final categoryName = categoryNames[index];
+          return Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white, // background white
+              border: Border.all(color: Colors.grey), // gray border
+            ),
+            child: Center(
+              child: Text(
+                categoryName,
+                style: const TextStyle(
+                  color: Colors.black, // gray text
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isDeleted) {
@@ -307,6 +351,9 @@ class _PostWidgetState extends State<PostWidget> {
                   )
                 : _buildPlaceholder(),
           ),
+
+          // --- CATEGORIES (between image and likes/comments) ---
+          _buildCategoryChips(),
 
           // --- Likes & Comments ---
           Padding(
