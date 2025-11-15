@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import '../../../utils/categories_helpers.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -20,11 +21,33 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final ImagePicker _picker = ImagePicker();
   XFile? _selectedImage;
   bool _isLoading = false;
+  List<Category> _categories = [];
+  bool _isCategoriesLoading = true;
+  Set<int> _selectedCategoryIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await fetchCategories();
+      setState(() {
+        _categories = categories;
+        _isCategoriesLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isCategoriesLoading = false);
+      _showErrorSnackBar('Failed to load categories');
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -89,6 +112,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() {
       _contentController.clear();
       _selectedImage = null;
+      _selectedCategoryIds.clear();
     });
   }
 
@@ -97,6 +121,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     if (_selectedImage == null) {
       _showErrorSnackBar('Please select an image');
+      return;
+    }
+
+    if (_selectedCategoryIds.isEmpty) {
+      _showErrorSnackBar('Please select at least one category');
       return;
     }
 
@@ -111,6 +140,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       request.headers['Authorization'] = 'Bearer $token';
 
       if (content.isNotEmpty) request.fields['content'] = content;
+
+      // Add category IDs
+      request.fields['category_ids'] = jsonEncode(
+        _selectedCategoryIds.toList(),
+      );
 
       if (_selectedImage != null) {
         if (kIsWeb) {
@@ -164,14 +198,208 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
+  Widget _buildCategoryChip(Category category) {
+    final isSelected = _selectedCategoryIds.contains(category.id);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedCategoryIds.remove(category.id);
+          } else {
+            _selectedCategoryIds.add(category.id);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [Colors.deepPurple, Colors.blue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected ? null : Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey[300]!,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? Colors.deepPurple.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.05),
+              blurRadius: isSelected ? 8 : 4,
+              offset: Offset(0, isSelected ? 4 : 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(Icons.check_circle, color: Colors.white, size: 18),
+              ),
+            Text(
+              category.name,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[800],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoriesSection() {
+    if (_isCategoriesLoading) {
+      return Container(
+        height: 60,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    if (_categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange[700]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No categories available',
+                style: TextStyle(
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Split categories into 3 rows
+    final itemsPerRow = (_categories.length / 3).ceil();
+    final row1 = _categories.take(itemsPerRow).toList();
+    final row2 = _categories.skip(itemsPerRow).take(itemsPerRow).toList();
+    final row3 = _categories.skip(itemsPerRow * 2).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Row(
+            children: [
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Colors.deepPurple, Colors.blue],
+                ).createShader(bounds),
+                child: const Text(
+                  'Select Categories',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _selectedCategoryIds.isEmpty
+                      ? Colors.red[50]
+                      : Colors.green[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_selectedCategoryIds.length} selected',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _selectedCategoryIds.isEmpty
+                        ? Colors.red[700]
+                        : Colors.green[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 170,
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(scrollbars: false),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row 1
+                  SizedBox(
+                    height: 50,
+                    child: Row(
+                      children: row1
+                          .map((category) => _buildCategoryChip(category))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Row 2
+                  SizedBox(
+                    height: 50,
+                    child: Row(
+                      children: row2
+                          .map((category) => _buildCategoryChip(category))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Row 3
+                  SizedBox(
+                    height: 50,
+                    child: Row(
+                      children: row3
+                          .map((category) => _buildCategoryChip(category))
+                          .toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset:
-          true, // <-- allow content to move above keyboard
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
+          shaderCallback: (bounds) => const LinearGradient(
             colors: [Colors.deepPurple, Colors.blue],
           ).createShader(bounds),
           child: const Text(
@@ -179,7 +407,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: Colors.white, // overridden by shader
+              color: Colors.white,
             ),
           ),
         ),
@@ -192,9 +420,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               left: 16,
               right: 16,
               top: 16,
-              bottom:
-                  MediaQuery.of(context).viewInsets.bottom +
-                  16, // <-- space for keyboard
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: Column(
               children: [
@@ -273,6 +499,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 24),
+
+                // Categories section
+                _buildCategoriesSection(),
 
                 const SizedBox(height: 24),
 
