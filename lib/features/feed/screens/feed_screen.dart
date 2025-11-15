@@ -3,6 +3,7 @@ import 'package:demo/features/notifications_screen.dart';
 import 'package:demo/features/posts/widgets/scrollable_post_widget.dart';
 import 'package:demo/utils/feed_helpers.dart';
 import 'package:demo/features/auth/screens/login_screen.dart';
+import '../../post_category_filter_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demo/features/chat/conversations_list_screen.dart';
@@ -19,6 +20,8 @@ class _FeedScreenState extends State<FeedScreen> {
   bool isLoading = true;
   String? errorMessage;
   String? userId;
+  int? selectedCategoryId;
+  String? selectedCategoryName;
 
   @override
   void initState() {
@@ -41,7 +44,7 @@ class _FeedScreenState extends State<FeedScreen> {
     });
 
     try {
-      final posts = await fetchUserFeed();
+      final posts = await fetchUserFeed(categoryId: selectedCategoryId);
       setState(() {
         userFeedPosts = posts;
         isLoading = false;
@@ -52,6 +55,14 @@ class _FeedScreenState extends State<FeedScreen> {
         isLoading = false;
       });
     }
+  }
+
+  void _onCategorySelected(int? categoryId, String? categoryName) {
+    setState(() {
+      selectedCategoryId = categoryId;
+      selectedCategoryName = categoryName;
+    });
+    _loadUserFeed();
   }
 
   Future<void> _logout() async {
@@ -123,45 +134,126 @@ class _FeedScreenState extends State<FeedScreen> {
           children: [
             Icon(Icons.feed_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            const Text(
-              'No posts available.',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+            Text(
+              selectedCategoryId != null
+                  ? 'No posts in "$selectedCategoryName"'
+                  : 'No posts available.',
+              style: const TextStyle(fontSize: 18, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
-              'Follow some users to see their posts here!',
+              selectedCategoryId != null
+                  ? 'Try selecting a different category or clear the filter'
+                  : 'Follow some users to see their posts here!',
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
             ),
+            if (selectedCategoryId != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _onCategorySelected(null, null),
+                child: const Text('Clear Filter'),
+              ),
+            ],
           ],
         ),
       );
     } else {
-      bodyContent = RefreshIndicator(
-        onRefresh: _loadUserFeed,
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: userFeedPosts.length,
-          itemBuilder: (context, index) {
-            final post = userFeedPosts[index];
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pass the post object with categories to PostWidget
-                PostWidget(
-                  postId: post.postId,
-                  categoryObjects: post.categoryObjects,
-                ),
-                Divider(height: 1, thickness: 1, color: Colors.grey[200]),
-                const SizedBox(height: 12),
-              ],
-            );
-          },
-        ),
+      bodyContent = Column(
+        children: [
+          // Category filter chip below app bar
+          if (selectedCategoryId != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.grey[100],
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Colors.deepPurple, Colors.blue],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.filter_alt,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Filtered by: $selectedCategoryName',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => _onCategorySelected(null, null),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadUserFeed,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: userFeedPosts.length,
+                itemBuilder: (context, index) {
+                  final post = userFeedPosts[index];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PostWidget(
+                        postId: post.postId,
+                        categoryObjects: post.categoryObjects,
+                      ),
+                      Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+                      const SizedBox(height: 12),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     // Wrap the empty/error/loading states with RefreshIndicator as well
-    if (bodyContent is! RefreshIndicator) {
+    if (bodyContent is! Column && bodyContent is! RefreshIndicator) {
       bodyContent = RefreshIndicator(
         onRefresh: _loadUserFeed,
         child: SingleChildScrollView(
@@ -199,6 +291,14 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
               actions: [
+                // Category Filter Button
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 8, right: 4),
+                  child: CategoryFilterButton(
+                    selectedCategoryId: selectedCategoryId,
+                    onCategorySelected: _onCategorySelected,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.message, color: Colors.blue),
                   onPressed: () async {
