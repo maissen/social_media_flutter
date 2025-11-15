@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String host = "localhost"; //79.137.34.134
+  static const String host = "//79.137.34.134"; //79.137.34.134
   static const int port = 8000;
 
   // Use string interpolation to include host and port
