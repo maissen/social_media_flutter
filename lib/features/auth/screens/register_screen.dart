@@ -16,7 +16,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+  final TextEditingController dateOfBirthController = TextEditingController();
 
+  DateTime? selectedDate;
   bool _isLoading = false;
 
   @override
@@ -25,7 +27,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     usernameController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    dateOfBirthController.dispose();
     super.dispose();
+  }
+
+  int _calculateAge(DateTime birthDate) {
+    final today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2005, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.deepPurple,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedDate = picked;
+        dateOfBirthController.text =
+            '${picked.day}/${picked.month}/${picked.year}';
+      });
+    }
   }
 
   Future<void> _register() async {
@@ -50,6 +94,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       errorMessage = 'Please confirm your password';
     } else if (confirmPassword != password) {
       errorMessage = 'Passwords do not match';
+    } else if (selectedDate == null) {
+      errorMessage = 'Please select your date of birth';
+    } else if (_calculateAge(selectedDate!) < 18) {
+      errorMessage = 'You must be at least 18 years old to register';
     }
 
     if (errorMessage != null) {
@@ -99,6 +147,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool obscureText = false,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
+    VoidCallback? onTap,
+    bool readOnly = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -136,6 +186,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               obscureText: obscureText,
               keyboardType: keyboardType,
               inputFormatters: inputFormatters,
+              onTap: onTap,
+              readOnly: readOnly,
             ),
           ),
         ),
@@ -273,6 +325,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'Confirm Password',
                 icon: Icons.lock_outline_rounded,
                 obscureText: true,
+              ),
+              const SizedBox(height: 20),
+
+              // Date of Birth Field
+              _buildGlassTextField(
+                controller: dateOfBirthController,
+                label: 'Date of Birth',
+                icon: Icons.calendar_today_rounded,
+                readOnly: true,
+                onTap: () => _selectDate(context),
               ),
               const SizedBox(height: 32),
 
