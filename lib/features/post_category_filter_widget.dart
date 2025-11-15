@@ -145,39 +145,36 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: _categories.length + 1,
                         itemBuilder: (context, index) {
+                          // Leading width for tick icons
+                          const leadingWidth = 24.0;
+
                           // "All Categories" option
                           if (index == 0) {
                             final isSelected =
                                 widget.selectedCategoryId == null;
                             return ListTile(
-                              leading: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  gradient: isSelected
-                                      ? const LinearGradient(colors: [
-                                          ],
-                                        )
-                                      : null,
-                                  color: isSelected ? null : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Icon(
-                                  Icons.select_all,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.grey[600],
-                                  size: 22,
-                                ),
-                              ),
-                              title: const Text(
+                              leading: isSelected
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: Colors.deepPurple,
+                                    )
+                                  : const SizedBox(width: leadingWidth),
+                              title: Text(
                                 'All Categories',
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  fontSize: 16,
+                                ),
                               ),
                               onTap: () {
                                 Navigator.pop(context);
                                 widget.onCategorySelected(null, null);
                               },
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                             );
                           }
 
@@ -187,31 +184,21 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
                               widget.selectedCategoryId == category.id;
 
                           return ListTile(
-                            leading: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? const LinearGradient(colors: [])
-                                    : null,
-                                color: isSelected ? null : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
+                            leading: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.deepPurple,
+                                  )
+                                : const SizedBox(width: leadingWidth),
                             title: Text(
                               category.name,
                               style: TextStyle(
                                 fontWeight: isSelected
-                                    ? FontWeight.bold
+                                    ? FontWeight.w700
                                     : FontWeight.w500,
+                                fontSize: 16,
                               ),
                             ),
-                            trailing: isSelected
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.deepPurple,
-                                  )
-                                : null,
                             onTap: () {
                               Navigator.pop(context);
                               widget.onCategorySelected(
@@ -219,6 +206,9 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
                                 category.name,
                               );
                             },
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                           );
                         },
                       ),
