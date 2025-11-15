@@ -151,14 +151,11 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
                                 widget.selectedCategoryId == null;
                             return ListTile(
                               leading: Container(
-                                width: 40,
-                                height: 40,
+                                width: 20,
+                                height: 20,
                                 decoration: BoxDecoration(
                                   gradient: isSelected
-                                      ? const LinearGradient(
-                                          colors: [
-                                            Colors.deepPurple,
-                                            Colors.blue,
+                                      ? const LinearGradient(colors: [
                                           ],
                                         )
                                       : null,
@@ -177,12 +174,6 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
                                 'All Categories',
                                 style: TextStyle(fontWeight: FontWeight.w600),
                               ),
-                              trailing: isSelected
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.deepPurple,
-                                    )
-                                  : null,
                               onTap: () {
                                 Navigator.pop(context);
                                 widget.onCategorySelected(null, null);
@@ -197,25 +188,14 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
 
                           return ListTile(
                             leading: Container(
-                              width: 40,
-                              height: 40,
+                              width: 20,
+                              height: 20,
                               decoration: BoxDecoration(
                                 gradient: isSelected
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Colors.deepPurple,
-                                          Colors.blue,
-                                        ],
-                                      )
+                                    ? const LinearGradient(colors: [])
                                     : null,
                                 color: isSelected ? null : Colors.grey[200],
                                 borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _getEmoji(category.name),
-                                  style: const TextStyle(fontSize: 20),
-                                ),
                               ),
                             ),
                             title: Text(
@@ -250,94 +230,17 @@ class _CategoryFilterButtonState extends State<CategoryFilterButton> {
     );
   }
 
-  String _getEmoji(String categoryName) {
-    // Extract emoji from category name if it exists
-    final emojiRegex = RegExp(r'[\u{1F300}-\u{1F9FF}]', unicode: true);
-    final match = emojiRegex.firstMatch(categoryName);
-    if (match != null) {
-      return match.group(0)!;
-    }
-    // Default emojis based on category name
-    if (categoryName.toLowerCase().contains('art')) return '🎨';
-    if (categoryName.toLowerCase().contains('music')) return '🎵';
-    if (categoryName.toLowerCase().contains('sport')) return '⚽';
-    if (categoryName.toLowerCase().contains('food')) return '🍔';
-    if (categoryName.toLowerCase().contains('travel')) return '✈️';
-    if (categoryName.toLowerCase().contains('tech')) return '💻';
-    if (categoryName.toLowerCase().contains('game')) return '🎮';
-    if (categoryName.toLowerCase().contains('ai') ||
-        categoryName.toLowerCase().contains('artificial'))
-      return '🤖';
-    return '📁'; // Default category icon
-  }
-
-  String? _getSelectedCategoryName() {
-    if (widget.selectedCategoryId == null) return null;
-    final category = _categories.firstWhere(
-      (cat) => cat.id == widget.selectedCategoryId,
-      orElse: () => Category(id: 0, name: 'Unknown'),
-    );
-    return category.name;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final selectedName = _getSelectedCategoryName();
     final isFiltered = widget.selectedCategoryId != null;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: isFiltered
-            ? const LinearGradient(
-                colors: [Colors.deepPurple, Colors.blue],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: isFiltered ? null : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isFiltered ? Colors.transparent : Colors.grey[300]!,
-          width: 1.5,
-        ),
+    return IconButton(
+      icon: Icon(
+        isFiltered ? Icons.filter_alt : Icons.filter_alt_outlined,
+        color: Colors.blue,
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: _showCategoryBottomSheet,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isFiltered ? Icons.filter_alt : Icons.filter_alt_outlined,
-                  size: 20,
-                  color: isFiltered ? Colors.white : Colors.grey[700],
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isFiltered && selectedName != null
-                      ? selectedName.length > 20
-                            ? '${selectedName.substring(0, 20)}...'
-                            : selectedName
-                      : 'Filter',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isFiltered ? Colors.white : Colors.grey[700],
-                  ),
-                ),
-                if (isFiltered) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_drop_down, size: 20, color: Colors.white),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+      onPressed: _showCategoryBottomSheet,
+      tooltip: 'Filter by Category',
     );
   }
 }
