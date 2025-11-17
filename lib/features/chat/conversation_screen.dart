@@ -510,13 +510,33 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ),
 
+        // Timestamp (e.g., "10:30 AM") - NOW ABOVE MESSAGE
+        if (showTime)
+          Align(
+            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: 12,
+                right: 12,
+                top: 8,
+                bottom: 4,
+              ),
+              child: Text(
+                TimestampHelper.formatMessageTime(timestamp),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+          ),
+
         // Message bubble
         Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: EdgeInsets.only(
-              bottom: showTime ? 4 : 2,
-              top: (index > 0 && !showDateHeader && sameUser) ? 2 : 8,
+              bottom: 8,
+              top: showTime
+                  ? 0
+                  : ((index > 0 && !showDateHeader && sameUser) ? 2 : 8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             constraints: BoxConstraints(
@@ -529,10 +549,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
               color: isMe ? null : Colors.white.withOpacity(0.9),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(
-                  isMe || (sameUser && !showDateHeader) ? 20 : 4,
+                  isMe || (sameUser && !showDateHeader && !showTime) ? 20 : 4,
                 ),
                 topRight: Radius.circular(
-                  !isMe || (sameUser && !showDateHeader) ? 20 : 4,
+                  !isMe || (sameUser && !showDateHeader && !showTime) ? 20 : 4,
                 ),
                 bottomLeft: const Radius.circular(20),
                 bottomRight: const Radius.circular(20),
@@ -556,19 +576,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ),
         ),
-
-        // Timestamp (e.g., "10:30 AM")
-        if (showTime)
-          Align(
-            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
-              child: Text(
-                TimestampHelper.formatMessageTime(timestamp),
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-            ),
-          ),
       ],
     );
   }
