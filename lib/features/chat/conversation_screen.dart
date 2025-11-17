@@ -5,9 +5,84 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import 'package:demo/config/constants.dart';
 import 'package:demo/utils/auth_helpers.dart';
 import 'package:demo/utils/chat_helpers.dart';
+
+// ---------------------------
+// Timestamp Helper Functions
+// ---------------------------
+class TimestampHelper {
+  static String formatMessageTime(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      return DateFormat('h:mm a').format(dateTime); // e.g., "10:30 AM"
+    } catch (e) {
+      return '';
+    }
+  }
+
+  static String formatDateHeader(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+      if (messageDate == today) {
+        return 'Today';
+      } else if (messageDate == yesterday) {
+        return 'Yesterday';
+      } else if (now.difference(messageDate).inDays < 7) {
+        return DateFormat('EEEE').format(dateTime); // e.g., "Monday"
+      } else {
+        return DateFormat(
+          'MMM d, yyyy',
+        ).format(dateTime); // e.g., "Nov 17, 2025"
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
+  static bool shouldShowDateHeader(
+    String? previousTimestamp,
+    String currentTimestamp,
+  ) {
+    if (previousTimestamp == null) return true;
+
+    try {
+      final prevDate = DateTime.parse(previousTimestamp);
+      final currDate = DateTime.parse(currentTimestamp);
+
+      return prevDate.year != currDate.year ||
+          prevDate.month != currDate.month ||
+          prevDate.day != currDate.day;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static bool shouldShowTimestamp(
+    String? previousTimestamp,
+    String currentTimestamp,
+    bool sameUser,
+  ) {
+    if (previousTimestamp == null || !sameUser) return true;
+
+    try {
+      final prevTime = DateTime.parse(previousTimestamp);
+      final currTime = DateTime.parse(currentTimestamp);
+
+      // Show timestamp if messages are more than 5 minutes apart
+      return currTime.difference(prevTime).inMinutes > 5;
+    } catch (e) {
+      return true;
+    }
+  }
+}
 
 // ---------------------------
 // User profile fetcher
@@ -343,7 +418,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
     _channel?.sink.add(payload);
 
-    // Reset typing status if user stops typing for 3 seconds
     _typingTimer?.cancel();
     if (startTyping) {
       _typingTimer = Timer(const Duration(seconds: 3), () {
@@ -369,7 +443,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
     setState(() => _isSending = true);
 
     try {
-      // Only send via WebSocket - it will handle both saving to DB and sending to recipient
       final payload = json.encode({
         'type': 'chat',
         'recipient_id': int.parse(widget.recipientUserId),
@@ -377,7 +450,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
       });
 
       _channel?.sink.add(payload);
-      // The WebSocket "sent" event will handle adding the message to UI
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -390,6 +462,118 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   // ---------------------------
+  // Build Message Item
+  // ---------------------------
+  Widget _buildMessageItem(int index) {
+    final message = _messages[index];
+    final isMe = message['sender_id'].toString() != widget.recipientUserId;
+    final timestamp = message['timestamp'];
+
+    // Check if we should show date header
+    final previousTimestamp = index > 0
+        ? _messages[index - 1]['timestamp']
+        : null;
+    final showDateHeader = TimestampHelper.shouldShowDateHeader(
+      previousTimestamp,
+      timestamp,
+    );
+
+    // Check if we should show message time
+    final previousSender = index > 0 ? _messages[index - 1]['sender_id'] : null;
+    final sameUser = previousSender == message['sender_id'];
+    final showTime = TimestampHelper.shouldShowTimestamp(
+      previousTimestamp,
+      timestamp,
+      sameUser,
+    );
+
+    return Column(
+      children: [
+        // Date header (e.g., "Today", "Yesterday")
+        if (showDateHeader)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                TimestampHelper.formatDateHeader(timestamp),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+
+        // Message bubble
+        Align(
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: EdgeInsets.only(
+              bottom: showTime ? 4 : 2,
+              top: (index > 0 && !showDateHeader && sameUser) ? 2 : 8,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            decoration: BoxDecoration(
+              gradient: isMe
+                  ? LinearGradient(colors: [Colors.deepPurple, Colors.blue])
+                  : null,
+              color: isMe ? null : Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(
+                  isMe || (sameUser && !showDateHeader) ? 20 : 4,
+                ),
+                topRight: Radius.circular(
+                  !isMe || (sameUser && !showDateHeader) ? 20 : 4,
+                ),
+                bottomLeft: const Radius.circular(20),
+                bottomRight: const Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isMe
+                      ? Colors.deepPurple.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              message['content'] ?? '',
+              style: TextStyle(
+                color: isMe ? Colors.white : Colors.grey.shade800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+
+        // Timestamp (e.g., "10:30 AM")
+        if (showTime)
+          Align(
+            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+              child: Text(
+                TimestampHelper.formatMessageTime(timestamp),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ---------------------------
   // UI
   // ---------------------------
   @override
@@ -397,7 +581,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        elevation: 0, // remove default elevation
+        elevation: 0,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -407,9 +591,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.25), // shadow color
-                blurRadius: 8, // blur
-                offset: const Offset(0, 4), // vertical offset downwards
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -417,7 +601,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Left: profile + username
             Row(
               children: [
                 CircleAvatar(
@@ -469,9 +652,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _recipientIsInConversation
-                                ? '${_recipientUser!['username']} is typing...'
-                                : 'Online',
+                            _recipientIsInConversation ? 'typing...' : 'Online',
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: _recipientIsInConversation
@@ -486,7 +667,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 ),
               ],
             ),
-            // Right: X button
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
@@ -494,7 +674,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ],
         ),
       ),
-
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -530,54 +709,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       controller: _scrollController,
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        final isMe =
-                            message['sender_id'].toString() !=
-                            widget.recipientUserId;
-
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: isMe
-                                  ? LinearGradient(
-                                      colors: [Colors.deepPurple, Colors.blue],
-                                    )
-                                  : null,
-                              color: isMe
-                                  ? null
-                                  : Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isMe
-                                      ? Colors.deepPurple.withOpacity(0.3)
-                                      : Colors.grey.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              message['content'] ?? '',
-                              style: TextStyle(
-                                color: isMe
-                                    ? Colors.white
-                                    : Colors.grey.shade800,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      itemBuilder: (context, index) => _buildMessageItem(index),
                     ),
             ),
             Container(
