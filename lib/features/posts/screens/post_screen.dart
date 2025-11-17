@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -28,18 +29,15 @@ class PostCategories extends StatelessWidget {
         itemBuilder: (context, index) {
           final category = categoryObjects![index];
 
-          // Extract the category name from [id, name] format
+          // Extract the category name
           String categoryName = 'Category';
 
           if (category is List && category.length > 1) {
-            // Format: [16, "🤖 Artificial Intelligence"]
             categoryName = category[1].toString();
           } else if (category is Map<String, dynamic>) {
-            // Fallback for map format
             categoryName =
                 category['category_name'] ?? category['name'] ?? 'Category';
           } else {
-            // Fallback for other formats
             categoryName = category.toString();
           }
 
@@ -110,7 +108,6 @@ class _PostScreenState extends State<PostScreen> {
       postResponse = await getPostById(int.parse(widget.postId));
 
       if (postResponse.success && postResponse.post != null) {
-        // Update global variable from API response
         isPostLikedByMe = postResponse.post!['is_liked_by_me'] ?? false;
 
         setState(() {
@@ -134,7 +131,6 @@ class _PostScreenState extends State<PostScreen> {
   @override
   void dispose() {
     _commentController.dispose();
-    // When the user leaves the post screen, signal that the profile might need refresh
     Navigator.pop(context, true);
     super.dispose();
   }
@@ -269,7 +265,10 @@ class PostContent extends StatelessWidget {
         const SizedBox(height: 16),
         PostCategories(categoryObjects: postData['category_objects']),
         const SizedBox(height: 12),
+
+        // FIXED MEDIA HERE
         PostMedia(mediaUrl: postData['media_url']),
+
         const SizedBox(height: 16),
         if (postData['content'] != null &&
             postData['content'].toString().isNotEmpty)
@@ -492,8 +491,13 @@ class PostHeader extends StatelessWidget {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// ✔ FIXED POST MEDIA (FULL WIDTH + NO CROP + DYNAMIC HEIGHT)
+////////////////////////////////////////////////////////////////////////////////
+
 class PostMedia extends StatefulWidget {
   final String? mediaUrl;
+
   const PostMedia({Key? key, this.mediaUrl}) : super(key: key);
 
   @override
@@ -501,45 +505,99 @@ class PostMedia extends StatefulWidget {
 }
 
 class _PostMediaState extends State<PostMedia> {
+  double? _aspectRatio;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mediaUrl != null && widget.mediaUrl!.isNotEmpty) {
+      _calculateImageAspectRatio(widget.mediaUrl!);
+    }
+  }
+
+  Future<void> _calculateImageAspectRatio(String url) async {
+    final image = Image.network(url);
+    final completer = Completer<ImageInfo>();
+
+    image.image
+        .resolve(const ImageConfiguration())
+        .addListener(
+          ImageStreamListener(
+            (ImageInfo info, bool _) {
+              completer.complete(info);
+            },
+            onError: (error, stack) {
+              completer.completeError(error);
+            },
+          ),
+        );
+
+    try {
+      final info = await completer.future;
+      final width = info.image.width.toDouble();
+      final height = info.image.height.toDouble();
+
+      if (mounted) {
+        setState(() {
+          _aspectRatio = width / height;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _aspectRatio = 1.0); // fallback
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    const double aspectRatio = 1.0;
+    final url = widget.mediaUrl;
 
-    if (widget.mediaUrl == null || widget.mediaUrl!.isEmpty) {
-      return AspectRatio(
-        aspectRatio: aspectRatio,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.image_not_supported_outlined,
-                size: 80,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No media available',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-            ],
-          ),
+    if (url == null || url.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        height: 220,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_not_supported_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No media available',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+          ],
         ),
       );
     }
 
-    return AspectRatio(
-      aspectRatio: aspectRatio,
-      child: ClipRRect(
+    if (_aspectRatio == null) {
+      return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          widget.mediaUrl!,
-          fit: BoxFit.cover,
+        child: Container(
+          height: 260,
           width: double.infinity,
+          color: Colors.grey[200],
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: AspectRatio(
+        aspectRatio: _aspectRatio!,
+        child: Image.network(
+          url,
+          width: double.infinity,
+          fit: BoxFit.fitWidth, // FULL WIDTH — NO CROP
           errorBuilder: (context, error, stackTrace) {
             return Container(
               color: Colors.grey[200],
@@ -557,34 +615,15 @@ class _PostMediaState extends State<PostMedia> {
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.mediaUrl!,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 10),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    error.toString(),
-                    style: const TextStyle(color: Colors.red, fontSize: 10),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
               ),
             );
           },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
 
-            final progress = loadingProgress.expectedTotalBytes != null
-                ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
+            final pct = progress.expectedTotalBytes != null
+                ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
                 : null;
 
             return Container(
@@ -593,11 +632,11 @@ class _PostMediaState extends State<PostMedia> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(value: progress, strokeWidth: 3),
-                    if (progress != null) ...[
+                    CircularProgressIndicator(value: pct, strokeWidth: 2),
+                    if (pct != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        '${(progress * 100).toInt()}%',
+                        "${(pct * 100).toInt()}%",
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
@@ -611,6 +650,8 @@ class _PostMediaState extends State<PostMedia> {
     );
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 class PostActions extends StatelessWidget {
   final int postId;
