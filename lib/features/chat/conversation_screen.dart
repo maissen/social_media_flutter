@@ -17,7 +17,7 @@ class TimestampHelper {
   static String formatMessageTime(String timestamp) {
     try {
       final dateTime = DateTime.parse(timestamp);
-      return DateFormat('h:mm a').format(dateTime); // e.g., "10:30 AM"
+      return DateFormat('h:mm a').format(dateTime);
     } catch (e) {
       return '';
     }
@@ -36,11 +36,9 @@ class TimestampHelper {
       } else if (messageDate == yesterday) {
         return 'Yesterday';
       } else if (now.difference(messageDate).inDays < 7) {
-        return DateFormat('EEEE').format(dateTime); // e.g., "Monday"
+        return DateFormat('EEEE').format(dateTime);
       } else {
-        return DateFormat(
-          'MMM d, yyyy',
-        ).format(dateTime); // e.g., "Nov 17, 2025"
+        return DateFormat('MMM d, yyyy').format(dateTime);
       }
     } catch (e) {
       return '';
@@ -76,7 +74,6 @@ class TimestampHelper {
       final prevTime = DateTime.parse(previousTimestamp);
       final currTime = DateTime.parse(currentTimestamp);
 
-      // Show timestamp if messages are more than 5 minutes apart
       return currTime.difference(prevTime).inMinutes > 5;
     } catch (e) {
       return true;
@@ -163,6 +160,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  // Available reactions
+  final List<String> _availableReactions = ['❤️', '😂', '👍', '😮', '😢'];
+
   List<Map<String, dynamic>> _messages = [];
   Map<String, dynamic>? _recipientUser;
 
@@ -247,6 +247,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 'sender_id': msg['sender_id'].toString(),
                 'content': msg['content'],
                 'timestamp': msg['timestamp'],
+                'reaction': msg['reaction'], // Include reaction
               },
             )
             .toList();
@@ -336,13 +337,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
       } else if (data['type'] == 'chat') {
         final from = data['from'].toString();
         final content = data['content'];
+        final timestamp = data['timestamp'];
 
         if (from == widget.recipientUserId) {
           setState(() {
             _messages.add({
               'sender_id': from,
               'content': content,
-              'timestamp': DateTime.now().toIso8601String(),
+              'timestamp': timestamp ?? DateTime.now().toIso8601String(),
+              'reaction': null,
             });
             _recipientIsInConversation = true;
           });
@@ -352,13 +355,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
       } else if (data['type'] == 'sent') {
         final to = data['to'].toString();
         final content = data['content'];
+        final timestamp = data['timestamp'];
 
         if (to == widget.recipientUserId) {
           setState(() {
             _messages.add({
               'sender_id': _myUserId,
               'content': content,
-              'timestamp': DateTime.now().toIso8601String(),
+              'timestamp': timestamp ?? DateTime.now().toIso8601String(),
+              'reaction': null,
             });
           });
           _scrollToBottom();
@@ -371,6 +376,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
           setState(() => _recipientIsInConversation = status == 'start');
           _resetRecipientStatus();
         }
+      } else if (data['type'] == 'reaction') {
+        // Handle reaction updates
+        final senderId = data['sender_id'].toString();
+        final recipientId = data['recipient_id'].toString();
+        final timestamp = data['timestamp'];
+        final reaction = data['reaction'];
+
+        setState(() {
+          final index = _messages.indexWhere(
+            (msg) =>
+                msg['sender_id'] == senderId && msg['timestamp'] == timestamp,
+          );
+
+          if (index != -1) {
+            _messages[index]['reaction'] = reaction;
+          }
+        });
       }
     } catch (e) {
       print('Error handling WebSocket message: $e');
@@ -462,14 +484,113 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   // ---------------------------
+  // Send Reaction
+  // ---------------------------
+  void _sendReaction(Map<String, dynamic> message, String? reaction) {
+    if (!_isConnected || _myUserId == null) return;
+
+    final payload = json.encode({
+      'type': 'reaction',
+      'sender_id': int.parse(message['sender_id']),
+      'recipient_id': message['sender_id'] == _myUserId
+          ? int.parse(widget.recipientUserId)
+          : int.parse(_myUserId!),
+      'timestamp': message['timestamp'],
+      'reaction': reaction, // null to remove reaction
+    });
+
+    _channel?.sink.add(payload);
+  }
+
+  // ---------------------------
+  // Show Reaction Picker
+  // ---------------------------
+  void _showReactionPicker(BuildContext context, Map<String, dynamic> message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Text(
+              'React to message',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ..._availableReactions.map(
+                  (emoji) => GestureDetector(
+                    onTap: () {
+                      _sendReaction(message, emoji);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: message['reaction'] == emoji
+                            ? Colors.deepPurple.shade100
+                            : Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                    ),
+                  ),
+                ),
+                // Remove reaction button
+                if (message['reaction'] != null)
+                  GestureDetector(
+                    onTap: () {
+                      _sendReaction(message, null);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 32,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------
   // Build Message Item
   // ---------------------------
   Widget _buildMessageItem(int index) {
     final message = _messages[index];
     final isMe = message['sender_id'].toString() != widget.recipientUserId;
     final timestamp = message['timestamp'];
+    final reaction = message['reaction'];
 
-    // Check if we should show date header
     final previousTimestamp = index > 0
         ? _messages[index - 1]['timestamp']
         : null;
@@ -478,7 +599,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
       timestamp,
     );
 
-    // Check if we should show message time
     final previousSender = index > 0 ? _messages[index - 1]['sender_id'] : null;
     final sameUser = previousSender == message['sender_id'];
     final showTime = TimestampHelper.shouldShowTimestamp(
@@ -489,7 +609,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
     return Column(
       children: [
-        // Date header (e.g., "Today", "Yesterday")
         if (showDateHeader)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -509,8 +628,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ),
             ),
           ),
-
-        // Timestamp (e.g., "10:30 AM") - NOW ABOVE MESSAGE
         if (showTime)
           Align(
             alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -527,52 +644,99 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ),
             ),
           ),
-
-        // Message bubble
         Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: EdgeInsets.only(
-              bottom: 8,
-              top: showTime
-                  ? 0
-                  : ((index > 0 && !showDateHeader && sameUser) ? 2 : 8),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
-            ),
-            decoration: BoxDecoration(
-              gradient: isMe
-                  ? LinearGradient(colors: [Colors.deepPurple, Colors.blue])
-                  : null,
-              color: isMe ? null : Colors.white.withOpacity(0.9),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(
-                  isMe || (sameUser && !showDateHeader && !showTime) ? 20 : 4,
+          child: GestureDetector(
+            onLongPress: () => _showReactionPicker(context, message),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  margin: EdgeInsets.only(
+                    bottom: reaction != null ? 16 : 8,
+                    top: showTime
+                        ? 0
+                        : ((index > 0 && !showDateHeader && sameUser) ? 2 : 8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: isMe
+                        ? LinearGradient(
+                            colors: [Colors.deepPurple, Colors.blue],
+                          )
+                        : null,
+                    color: isMe ? null : Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(
+                        isMe || (sameUser && !showDateHeader && !showTime)
+                            ? 20
+                            : 4,
+                      ),
+                      topRight: Radius.circular(
+                        !isMe || (sameUser && !showDateHeader && !showTime)
+                            ? 20
+                            : 4,
+                      ),
+                      bottomLeft: const Radius.circular(20),
+                      bottomRight: const Radius.circular(20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isMe
+                            ? Colors.deepPurple.withOpacity(0.3)
+                            : Colors.grey.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    message['content'] ?? '',
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.grey.shade800,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-                topRight: Radius.circular(
-                  !isMe || (sameUser && !showDateHeader && !showTime) ? 20 : 4,
-                ),
-                bottomLeft: const Radius.circular(20),
-                bottomRight: const Radius.circular(20),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isMe
-                      ? Colors.deepPurple.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
+                // Reaction badge
+                if (reaction != null)
+                  Positioned(
+                    bottom: 0,
+                    right: isMe ? 8 : null,
+                    left: isMe ? null : 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        reaction,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
               ],
-            ),
-            child: Text(
-              message['content'] ?? '',
-              style: TextStyle(
-                color: isMe ? Colors.white : Colors.grey.shade800,
-                fontSize: 16,
-              ),
             ),
           ),
         ),
