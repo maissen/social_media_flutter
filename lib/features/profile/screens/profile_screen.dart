@@ -171,19 +171,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onRefresh: _loadProfile,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProfileHeader(),
-                    _buildUsernameBioSection(),
-                    const SizedBox(height: 24),
-                    UserPostsWidget(
-                      profileUserId: _userProfile!.userId,
-                      loggedInUserId: _loggedInUserId,
-                      onPostTapped: _openPostScreen,
-                      onSharePostTapped: _onSharePostTapped,
-                    ),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: 110,
+                  ), // ← added bottom padding
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildProfileHeader(),
+                      _buildUsernameBioSection(),
+                      const SizedBox(height: 24),
+                      UserPostsWidget(
+                        profileUserId: _userProfile!.userId,
+                        loggedInUserId: _loggedInUserId,
+                        onPostTapped: _openPostScreen,
+                        onSharePostTapped: _onSharePostTapped,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
