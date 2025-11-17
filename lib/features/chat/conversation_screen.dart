@@ -553,16 +553,18 @@ class _ConversationScreenState extends State<ConversationScreen> {
     const pickerHeight = 60.0;
     const edgePadding = 16.0;
 
-    // Calculate center position
-    double left = tapPosition.dx - (pickerWidth / 2);
-    double top = tapPosition.dy - pickerHeight - 30;
+    // Always center horizontally on screen
+    double left = (screenWidth - pickerWidth) / 2;
 
-    // Ensure picker stays within horizontal bounds
+    // Ensure it doesn't exceed edges (safety check)
     if (left < edgePadding) {
       left = edgePadding;
     } else if (left + pickerWidth > screenWidth - edgePadding) {
       left = screenWidth - pickerWidth - edgePadding;
     }
+
+    // Calculate vertical position
+    double top = tapPosition.dy - pickerHeight - 30;
 
     // Ensure picker stays within vertical bounds
     if (top < edgePadding + 60) {
