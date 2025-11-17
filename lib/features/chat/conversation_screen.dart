@@ -74,7 +74,9 @@ class TimestampHelper {
       final prevTime = DateTime.parse(previousTimestamp);
       final currTime = DateTime.parse(currentTimestamp);
 
-      return currTime.difference(prevTime).inMinutes > 5;
+      // Show timestamp if messages are more than 5 minutes apart
+      final minutesDiff = currTime.difference(prevTime).inMinutes.abs();
+      return minutesDiff >= 5;
     } catch (e) {
       return true;
     }
