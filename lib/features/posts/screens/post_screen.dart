@@ -7,6 +7,8 @@ import 'package:demo/utils/posts_helpers.dart';
 import 'package:demo/features/posts/widgets/comments_bottom_sheet_widget.dart';
 import 'package:demo/features/posts/widgets/likes_bottom_sheet_widget.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Widget to display post categories
 class PostCategories extends StatelessWidget {
@@ -274,9 +276,59 @@ class PostContent extends StatelessWidget {
             postData['content'].toString().isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              postData['content'],
-              style: const TextStyle(fontSize: 16, height: 1.4),
+            child: Linkify(
+              text: postData['content'],
+              onOpen: (link) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Open Link'),
+                    content: const Text(
+                      'You need to open your browser to visit this link',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          final uri = Uri.parse(link.url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not open the link'),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.4,
+                color: Colors.black,
+              ),
+              linkStyle: TextStyle(
+                foreground: Paint()
+                  ..shader = const LinearGradient(
+                    colors: [Colors.deepPurple, Colors.blue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 20.0)),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         const SizedBox(height: 16),
