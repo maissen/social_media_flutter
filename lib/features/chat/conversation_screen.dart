@@ -178,6 +178,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   bool _recipientIsInConversation = false;
   String? _myUserId;
 
+  // For reaction popup
+  OverlayEntry? _reactionOverlay;
+
   @override
   void initState() {
     super.initState();
@@ -193,6 +196,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _scrollController.dispose();
     _resetTimer?.cancel();
     _typingTimer?.cancel();
+    _removeReactionOverlay();
     super.dispose();
   }
 
@@ -247,7 +251,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 'sender_id': msg['sender_id'].toString(),
                 'content': msg['content'],
                 'timestamp': msg['timestamp'],
-                'reaction': msg['reaction'], // Include reaction
+                'reactions':
+                    msg['reactions'] ??
+                    {'sender_reaction': null, 'recipient_reaction': null},
               },
             )
             .toList();
@@ -338,6 +344,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
         final from = data['from'].toString();
         final content = data['content'];
         final timestamp = data['timestamp'];
+        final reactions =
+            data['reactions'] ??
+            {'sender_reaction': null, 'recipient_reaction': null};
 
         if (from == widget.recipientUserId) {
           setState(() {
@@ -345,7 +354,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               'sender_id': from,
               'content': content,
               'timestamp': timestamp ?? DateTime.now().toIso8601String(),
-              'reaction': null,
+              'reactions': reactions,
             });
             _recipientIsInConversation = true;
           });
@@ -356,6 +365,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
         final to = data['to'].toString();
         final content = data['content'];
         final timestamp = data['timestamp'];
+        final reactions =
+            data['reactions'] ??
+            {'sender_reaction': null, 'recipient_reaction': null};
 
         if (to == widget.recipientUserId) {
           setState(() {
@@ -363,7 +375,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               'sender_id': _myUserId,
               'content': content,
               'timestamp': timestamp ?? DateTime.now().toIso8601String(),
-              'reaction': null,
+              'reactions': reactions,
             });
           });
           _scrollToBottom();
@@ -377,11 +389,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
           _resetRecipientStatus();
         }
       } else if (data['type'] == 'reaction') {
-        // Handle reaction updates
+        // Handle reaction updates with new format
         final senderId = data['sender_id'].toString();
-        final recipientId = data['recipient_id'].toString();
         final timestamp = data['timestamp'];
-        final reaction = data['reaction'];
+        final reactions = data['reactions'];
 
         setState(() {
           final index = _messages.indexWhere(
@@ -390,7 +401,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           );
 
           if (index != -1) {
-            _messages[index]['reaction'] = reaction;
+            _messages[index]['reactions'] = reactions;
           }
         });
       }
@@ -503,83 +514,122 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   // ---------------------------
-  // Show Reaction Picker
+  // Get user's current reaction
   // ---------------------------
-  void _showReactionPicker(BuildContext context, Map<String, dynamic> message) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+  String? _getUserReaction(Map<String, dynamic> message) {
+    final reactions = message['reactions'];
+    if (reactions == null) return null;
+
+    final isMe = message['sender_id'].toString() == _myUserId;
+    return isMe
+        ? reactions['sender_reaction']
+        : reactions['recipient_reaction'];
+  }
+
+  // ---------------------------
+  // Remove Reaction Overlay
+  // ---------------------------
+  void _removeReactionOverlay() {
+    _reactionOverlay?.remove();
+    _reactionOverlay = null;
+  }
+
+  // ---------------------------
+  // Show Reaction Picker (Popup Style)
+  // ---------------------------
+  void _showReactionPicker(
+    BuildContext context,
+    Map<String, dynamic> message,
+    Offset tapPosition,
+  ) {
+    _removeReactionOverlay();
+
+    final currentReaction = _getUserReaction(message);
+
+    _reactionOverlay = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          // Transparent barrier to close overlay
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _removeReactionOverlay,
+              child: Container(color: Colors.transparent),
             ),
-            const Text(
-              'React to message',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ..._availableReactions.map(
-                  (emoji) => GestureDetector(
-                    onTap: () {
-                      _sendReaction(message, emoji);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: message['reaction'] == emoji
-                            ? Colors.deepPurple.shade100
-                            : Colors.grey.shade100,
-                        shape: BoxShape.circle,
+          ),
+          // Reaction picker popup
+          Positioned(
+            left: tapPosition.dx - 140,
+            top: tapPosition.dy - 80,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.easeOutBack,
+              builder: (context, value, child) {
+                // Clamp the value to ensure it stays within valid range
+                final clampedValue = value.clamp(0.0, 1.0);
+                return Transform.scale(
+                  scale: clampedValue,
+                  child: Opacity(opacity: clampedValue, child: child),
+                );
+              },
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      child: Text(emoji, style: const TextStyle(fontSize: 32)),
-                    ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _availableReactions.map((emoji) {
+                      final isSelected = currentReaction == emoji;
+                      return GestureDetector(
+                        onTap: () {
+                          // If tapping the same reaction, remove it
+                          if (isSelected) {
+                            _sendReaction(message, null);
+                          } else {
+                            _sendReaction(message, emoji);
+                          }
+                          _removeReactionOverlay();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.deepPurple.shade100
+                                : Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-                // Remove reaction button
-                if (message['reaction'] != null)
-                  GestureDetector(
-                    onTap: () {
-                      _sendReaction(message, null);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 32,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
+    Overlay.of(context).insert(_reactionOverlay!);
   }
 
   // ---------------------------
@@ -589,7 +639,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final message = _messages[index];
     final isMe = message['sender_id'].toString() != widget.recipientUserId;
     final timestamp = message['timestamp'];
-    final reaction = message['reaction'];
+    final reactions = message['reactions'];
+    final senderReaction = reactions?['sender_reaction'];
+    final recipientReaction = reactions?['recipient_reaction'];
+    final hasReactions = senderReaction != null || recipientReaction != null;
 
     final previousTimestamp = index > 0
         ? _messages[index - 1]['timestamp']
@@ -606,6 +659,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
       timestamp,
       sameUser,
     );
+
+    // Create a GlobalKey for this message bubble
+    final GlobalKey messageKey = GlobalKey();
 
     return Column(
       children: [
@@ -646,14 +702,42 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
         Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: GestureDetector(
-            onLongPress: () => _showReactionPicker(context, message),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
+          child: Column(
+            crossAxisAlignment: isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onLongPress: () {
+                  final RenderBox? box =
+                      messageKey.currentContext?.findRenderObject()
+                          as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    _showReactionPicker(
+                      context,
+                      message,
+                      Offset(position.dx + box.size.width / 2, position.dy),
+                    );
+                  }
+                },
+                onDoubleTap: () {
+                  final RenderBox? box =
+                      messageKey.currentContext?.findRenderObject()
+                          as RenderBox?;
+                  if (box != null) {
+                    final Offset position = box.localToGlobal(Offset.zero);
+                    _showReactionPicker(
+                      context,
+                      message,
+                      Offset(position.dx + box.size.width / 2, position.dy),
+                    );
+                  }
+                },
+                child: Container(
+                  key: messageKey,
                   margin: EdgeInsets.only(
-                    bottom: reaction != null ? 16 : 8,
+                    bottom: 8,
                     top: showTime
                         ? 0
                         : ((index > 0 && !showDateHeader && sameUser) ? 2 : 8),
@@ -704,40 +788,184 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     ),
                   ),
                 ),
-                // Reaction badge
-                if (reaction != null)
-                  Positioned(
-                    bottom: 0,
-                    right: isMe ? 8 : null,
-                    left: isMe ? null : 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        reaction,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
+              ),
+              // Reaction display below message
+              if (hasReactions)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: isMe ? 0 : 8,
+                    right: isMe ? 8 : 0,
+                    top: 4,
                   ),
-              ],
-            ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isMe && senderReaction != null)
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.deepPurple.shade200,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                senderReaction,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'You',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!isMe && recipientReaction != null)
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.deepPurple.shade200,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                recipientReaction,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'You',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (isMe && recipientReaction != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                recipientReaction,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Other',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!isMe && senderReaction != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                senderReaction,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Other',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ),
       ],
