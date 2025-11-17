@@ -14,14 +14,14 @@ class PostWidget extends StatefulWidget {
   final int postId;
   final Function(String postId)? onDelete;
   final Function(String postId)? onUpdate;
-  final List<List<dynamic>>? categoryObjects; // Add this parameter
+  final List<List<dynamic>>? categoryObjects;
 
   const PostWidget({
     Key? key,
     required this.postId,
     this.onDelete,
     this.onUpdate,
-    this.categoryObjects, // Add this
+    this.categoryObjects,
   }) : super(key: key);
 
   @override
@@ -34,15 +34,11 @@ class _PostWidgetState extends State<PostWidget> {
   bool isLoading = true;
   String? loggedInUserId;
 
-  // Local states for likes
   bool _isLiked = false;
   int _likesCount = 0;
   int _commentsCount = 0;
-
-  // Local state for content
   String _currentContent = '';
 
-  // Flag to hide the widget after deletion
   bool _isDeleted = false;
 
   @override
@@ -67,17 +63,12 @@ class _PostWidgetState extends State<PostWidget> {
           _currentContent = post!.content;
         });
 
-        // Fetch post owner
         _fetchPostOwner();
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
+    } catch (_) {
+      setState(() => isLoading = false);
     }
   }
 
@@ -86,14 +77,13 @@ class _PostWidgetState extends State<PostWidget> {
 
     try {
       final owner = await fetchUserProfile(post!.userId.toString());
+
       setState(() {
         postOwner = owner;
         isLoading = false;
       });
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
+    } catch (_) {
+      setState(() => isLoading = false);
     }
   }
 
@@ -149,12 +139,8 @@ class _PostWidgetState extends State<PostWidget> {
                   );
 
                   if (response.success) {
-                    setState(() {
-                      _currentContent = newContent;
-                    });
-                    if (widget.onUpdate != null) {
-                      widget.onUpdate!(widget.postId.toString());
-                    }
+                    setState(() => _currentContent = newContent);
+                    widget.onUpdate?.call(widget.postId.toString());
                   }
                 }
               },
@@ -189,12 +175,8 @@ class _PostWidgetState extends State<PostWidget> {
                   final response = await deletePost(postId: widget.postId);
 
                   if (response.success) {
-                    setState(() {
-                      _isDeleted = true;
-                    });
-                    if (widget.onDelete != null) {
-                      widget.onDelete!(widget.postId.toString());
-                    }
+                    setState(() => _isDeleted = true);
+                    widget.onDelete?.call(widget.postId.toString());
                   }
                 }
               },
@@ -205,13 +187,11 @@ class _PostWidgetState extends State<PostWidget> {
     );
   }
 
-  // Helper method to build category chips
   Widget _buildCategoryChips() {
     final categories = widget.categoryObjects;
 
-    if (categories == null || categories.isEmpty) {
+    if (categories == null || categories.isEmpty)
       return const SizedBox.shrink();
-    }
 
     final categoryNames = categories.map((cat) => cat[1] as String).toList();
 
@@ -228,14 +208,14 @@ class _PostWidgetState extends State<PostWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Colors.white, // background white
-              border: Border.all(color: Colors.grey), // gray border
+              color: Colors.white,
+              border: Border.all(color: Colors.grey),
             ),
             child: Center(
               child: Text(
                 categoryName,
                 style: const TextStyle(
-                  color: Colors.black, // gray text
+                  color: Colors.black,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -249,9 +229,7 @@ class _PostWidgetState extends State<PostWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isDeleted) {
-      return const SizedBox.shrink();
-    }
+    if (_isDeleted) return const SizedBox.shrink();
 
     if (isLoading || post == null) {
       return Container(
@@ -262,8 +240,7 @@ class _PostWidgetState extends State<PostWidget> {
       );
     }
 
-    final isOwner =
-        loggedInUserId != null && loggedInUserId == post!.userId.toString();
+    final isOwner = loggedInUserId == post!.userId.toString();
 
     return Container(
       color: Colors.white,
@@ -271,13 +248,13 @@ class _PostWidgetState extends State<PostWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Header ---
+          // HEADER
           InkWell(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProfileScreen(
+                  builder: (_) => ProfileScreen(
                     userId: postOwner?.userId ?? post!.userId.toString(),
                     showTopBanner: true,
                   ),
@@ -328,34 +305,35 @@ class _PostWidgetState extends State<PostWidget> {
             ),
           ),
 
-          // --- Post content ---
+          // CONTENT TEXT
           if (_currentContent.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Text(_currentContent),
             ),
 
-          // --- Media ---
-          AspectRatio(
-            aspectRatio: 1,
-            child: post!.mediaUrl.isNotEmpty
-                ? Image.network(
-                    post!.mediaUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _buildPlaceholder(),
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return _buildPlaceholder();
-                    },
-                  )
-                : _buildPlaceholder(),
-          ),
+          // 🌟 **FULL-WIDTH, NO-CROP IMAGE**
+          if (post!.mediaUrl.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: Colors.black12,
+              child: Image.network(
+                post!.mediaUrl,
+                width: double.infinity,
+                fit: BoxFit.fitWidth, // 🚀 FULL WIDTH - NO CROP
+                alignment: Alignment.topCenter,
+                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return SizedBox(height: 200, child: _buildPlaceholder());
+                },
+              ),
+            ),
 
-          // --- CATEGORIES (between image and likes/comments) ---
+          // CATEGORIES
           _buildCategoryChips(),
 
-          // --- Likes & Comments ---
+          // LIKE + COMMENT ROW
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -393,13 +371,14 @@ class _PostWidgetState extends State<PostWidget> {
                         );
                       },
                       child: Text(
-                        '$_likesCount ${_likesCount == 1 ? 'like' : 'likes'}',
+                        '$_likesCount likes',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(width: 16),
+
                 InkWell(
                   onTap: () {
                     showModalBottomSheet(
@@ -412,13 +391,10 @@ class _PostWidgetState extends State<PostWidget> {
                   },
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.mode_comment_outlined,
-                        color: Colors.black,
-                      ),
+                      const Icon(Icons.mode_comment_outlined),
                       const SizedBox(width: 6),
                       Text(
-                        '$_commentsCount ${_commentsCount == 1 ? 'comment' : 'comments'}',
+                        '$_commentsCount comments',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
