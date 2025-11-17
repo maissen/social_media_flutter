@@ -610,16 +610,27 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 8,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.white, Colors.grey.shade50],
+                      ),
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: Colors.grey.shade200, width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 12,
+                          color: Colors.deepPurple.withOpacity(0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 8),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -628,6 +639,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: _availableReactions.map((emoji) {
                         final isSelected = currentReaction == emoji;
+                        final emojiIndex = _availableReactions.indexOf(emoji);
+
                         return GestureDetector(
                           onTap: () {
                             // If tapping the same reaction, remove it
@@ -639,31 +652,71 @@ class _ConversationScreenState extends State<ConversationScreen> {
                             _removeReactionOverlay();
                           },
                           child: TweenAnimationBuilder<double>(
-                            duration: Duration(
-                              milliseconds:
-                                  300 +
-                                  (_availableReactions.indexOf(emoji) * 50),
-                            ),
+                            duration: const Duration(milliseconds: 1300),
                             tween: Tween(begin: 0.0, end: 1.0),
-                            curve: Curves.elasticOut,
+                            curve: Curves.easeOut,
                             builder: (context, value, child) {
+                              // Create zoom in/out effect with proper sequencing
+                              double scale;
+                              final delay =
+                                  emojiIndex * 200; // 80ms delay between each
+                              final totalTime = 1300;
+                              final progress =
+                                  (value *
+                                      (totalTime +
+                                          delay * _availableReactions.length)) -
+                                  delay;
+                              final normalizedProgress = (progress / totalTime)
+                                  .clamp(0.0, 1.0);
+
+                              if (normalizedProgress < 0.6) {
+                                // Zoom in phase (0 to 1.3)
+                                scale = normalizedProgress * 2.17;
+                              } else {
+                                // Zoom out phase (1.3 to 1.0)
+                                scale =
+                                    1.3 - ((normalizedProgress - 0.6) * 0.75);
+                              }
+
                               return Transform.scale(
-                                scale: value.clamp(0.0, 1.0),
+                                scale: scale.clamp(0.0, 1.3),
                                 child: child,
                               );
                             },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              padding: const EdgeInsets.all(8),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.deepPurple.shade100
-                                    : Colors.transparent,
+                                gradient: isSelected
+                                    ? LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.deepPurple.shade100,
+                                          Colors.blue.shade100,
+                                        ],
+                                      )
+                                    : null,
+                                color: isSelected ? null : Colors.transparent,
                                 shape: BoxShape.circle,
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.deepPurple.withOpacity(
+                                            0.3,
+                                          ),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : null,
                               ),
                               child: Text(
                                 emoji,
-                                style: const TextStyle(fontSize: 28),
+                                style: TextStyle(
+                                  fontSize: isSelected ? 30 : 28,
+                                ),
                               ),
                             ),
                           ),
