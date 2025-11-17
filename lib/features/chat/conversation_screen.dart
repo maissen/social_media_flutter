@@ -107,7 +107,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void initState() {
     super.initState();
     _fetchRecipientUser();
-    // _fetchMessages();
     _initializeConversation();
   }
 
@@ -370,15 +369,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     setState(() => _isSending = true);
 
     try {
-      final token = await getAccessToken();
-      if (token == null) throw Exception("No access token found");
-
-      await sendChatMessage(
-        token: token,
-        recipientId: int.parse(widget.recipientUserId),
-        content: content,
-      );
-
+      // Only send via WebSocket - it will handle both saving to DB and sending to recipient
       final payload = json.encode({
         'type': 'chat',
         'recipient_id': int.parse(widget.recipientUserId),
@@ -386,7 +377,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       });
 
       _channel?.sink.add(payload);
-      // await _fetchMessages();
+      // The WebSocket "sent" event will handle adding the message to UI
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
