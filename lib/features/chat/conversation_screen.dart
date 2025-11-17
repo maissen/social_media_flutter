@@ -545,87 +545,137 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _removeReactionOverlay();
 
     final currentReaction = _getUserReaction(message);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    // Calculate reaction picker dimensions (5 reactions * 44px + padding)
+    const pickerWidth = 280.0;
+    const pickerHeight = 60.0;
+    const edgePadding = 16.0;
+
+    // Calculate center position
+    double left = tapPosition.dx - (pickerWidth / 2);
+    double top = tapPosition.dy - pickerHeight - 30;
+
+    // Ensure picker stays within horizontal bounds
+    if (left < edgePadding) {
+      left = edgePadding;
+    } else if (left + pickerWidth > screenWidth - edgePadding) {
+      left = screenWidth - pickerWidth - edgePadding;
+    }
+
+    // Ensure picker stays within vertical bounds
+    if (top < edgePadding + 60) {
+      // 60 for app bar
+      // Show below the message if no space above
+      top = tapPosition.dy + 30;
+    }
+
+    // If still overflowing at bottom, adjust
+    if (top + pickerHeight > screenHeight - edgePadding - 100) {
+      top = screenHeight - pickerHeight - edgePadding - 100;
+    }
 
     _reactionOverlay = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          // Transparent barrier to close overlay
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _removeReactionOverlay,
-              child: Container(color: Colors.transparent),
+      builder: (context) => Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            // Transparent barrier to close overlay
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _removeReactionOverlay,
+                child: Container(color: Colors.transparent),
+              ),
             ),
-          ),
-          // Reaction picker popup
-          Positioned(
-            left: tapPosition.dx - 140,
-            top: tapPosition.dy - 80,
-            child: TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 200),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) {
-                // Clamp the value to ensure it stays within valid range
-                final clampedValue = value.clamp(0.0, 1.0);
-                return Transform.scale(
-                  scale: clampedValue,
-                  child: Opacity(opacity: clampedValue, child: child),
-                );
-              },
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: _availableReactions.map((emoji) {
-                      final isSelected = currentReaction == emoji;
-                      return GestureDetector(
-                        onTap: () {
-                          // If tapping the same reaction, remove it
-                          if (isSelected) {
-                            _sendReaction(message, null);
-                          } else {
-                            _sendReaction(message, emoji);
-                          }
-                          _removeReactionOverlay();
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.deepPurple.shade100
-                                : Colors.transparent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            emoji,
-                            style: const TextStyle(fontSize: 28),
-                          ),
+            // Reaction picker popup with constraints
+            Positioned(
+              left: left,
+              top: top,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: screenWidth - (edgePadding * 2),
+                ),
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 250),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    // Clamp the value to ensure it stays within valid range
+                    final clampedValue = value.clamp(0.0, 1.0);
+                    return Transform.scale(
+                      scale: 0.5 + (clampedValue * 0.5),
+                      child: Opacity(opacity: clampedValue, child: child),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _availableReactions.map((emoji) {
+                        final isSelected = currentReaction == emoji;
+                        return GestureDetector(
+                          onTap: () {
+                            // If tapping the same reaction, remove it
+                            if (isSelected) {
+                              _sendReaction(message, null);
+                            } else {
+                              _sendReaction(message, emoji);
+                            }
+                            _removeReactionOverlay();
+                          },
+                          child: TweenAnimationBuilder<double>(
+                            duration: Duration(
+                              milliseconds:
+                                  300 +
+                                  (_availableReactions.indexOf(emoji) * 50),
+                            ),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            curve: Curves.elasticOut,
+                            builder: (context, value, child) {
+                              return Transform.scale(
+                                scale: value.clamp(0.0, 1.0),
+                                child: child,
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.deepPurple.shade100
+                                    : Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                emoji,
+                                style: const TextStyle(fontSize: 28),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -795,7 +845,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   padding: EdgeInsets.only(
                     left: isMe ? 0 : 8,
                     right: isMe ? 8 : 0,
-                    top: 4,
+                    top: 2,
+                    bottom: 8,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
