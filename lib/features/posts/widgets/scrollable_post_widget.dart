@@ -9,6 +9,8 @@ import 'package:demo/utils/feed_helpers.dart';
 import 'package:demo/utils/user_helpers.dart';
 import 'package:demo/utils/user_profile.dart';
 import 'package:demo/features/profile/screens/profile_screen.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PostWidget extends StatefulWidget {
   final int postId;
@@ -227,6 +229,59 @@ class _PostWidgetState extends State<PostWidget> {
     );
   }
 
+  Widget _buildPostText() {
+    if (_currentContent.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Linkify(
+        text: _currentContent,
+        onOpen: (link) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Open Link'),
+              content: const Text(
+                'You need to open your browser to visit this link',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final uri = Uri.parse(link.url);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not launch link')),
+                      );
+                    }
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        },
+        style: const TextStyle(fontSize: 14, color: Colors.black),
+        linkStyle: TextStyle(
+          foreground: Paint()
+            ..shader = const LinearGradient(
+              colors: [Colors.deepPurple, Colors.blue],
+            ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 20.0)),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isDeleted) return const SizedBox.shrink();
@@ -305,14 +360,10 @@ class _PostWidgetState extends State<PostWidget> {
             ),
           ),
 
-          // CONTENT TEXT
-          if (_currentContent.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(_currentContent),
-            ),
+          // CONTENT TEXT WITH LINKIFY
+          _buildPostText(),
 
-          // 🌟 **FULL-WIDTH, NO-CROP IMAGE**
+          // FULL-WIDTH IMAGE
           if (post!.mediaUrl.isNotEmpty)
             Container(
               width: double.infinity,
@@ -320,7 +371,7 @@ class _PostWidgetState extends State<PostWidget> {
               child: Image.network(
                 post!.mediaUrl,
                 width: double.infinity,
-                fit: BoxFit.fitWidth, // 🚀 FULL WIDTH - NO CROP
+                fit: BoxFit.fitWidth,
                 alignment: Alignment.topCenter,
                 errorBuilder: (_, __, ___) => _buildPlaceholder(),
                 loadingBuilder: (_, child, progress) {
